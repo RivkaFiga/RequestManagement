@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <!-- Same secrets store as the Seeder: ConnectionStrings:RequestManagement -->
+    <UserSecretsId>request-management-dev</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RequestManagement.Core\RequestManagement.Core.csproj" />
+    <ProjectReference Include="..\RequestManagement.Infrastructure\RequestManagement.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- Swagger UI over the built-in OpenAPI document; mapped in Development only (D13) -->
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
+  </ItemGroup>
+</Project>

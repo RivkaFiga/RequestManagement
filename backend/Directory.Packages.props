@@ -19,5 +19,12 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.1" />
     <!-- Integration tests against real SQL Server (D11) -->
     <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
+    <!-- API (T-201): built-in OpenAPI document + Swagger UI in Development (D13) -->
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageVersion Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.0.0" />
+    <!-- Security pin: transitive via Microsoft.AspNetCore.OpenApi 10.0.0 (Microsoft.OpenApi 2.0.0); 2.7.5 fixes GHSA-v5pm-xwqc-g5wc (same 2.x line) -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.5" />
+    <!-- In-process API hosting for integration tests -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
   </ItemGroup>
 </Project>
