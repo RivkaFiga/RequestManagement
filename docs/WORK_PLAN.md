@@ -2,7 +2,7 @@
 
 | Item | Value |
 |---|---|
-| Document status | Draft v2, reviewed against the assignment PDF. Planning only. **No implementation has started.** |
+| Document status | Draft v2, reviewed against the assignment PDF. **Implementation has started: Phase 0–1 (foundation, data layer, seeder) is in the repository; Phase 2 onward (API, Angular, performance, docs) does not exist yet.** |
 | Date | 2026-10-20 |
 | Verification (local) | 2026-10-21: `dotnet build .\RequestManagement.sln --no-restore` succeeded. Unit tests 51 passed, 0 failed. Integration tests 8 passed, 0 failed (Docker Testcontainers, SQL Server 2022). `dotnet list .\RequestManagement.sln package --vulnerable --include-transitive`: no vulnerable packages in all five projects. No task is marked `Done` yet; see each task's remaining items. |
 | Source of truth | Assignment PDF: Full Stack developer test, level C (6 pages, Hebrew) |
@@ -15,7 +15,7 @@
 
 | # | Finding | Impact on plan |
 |---|---|---|
-| F1 | The project folder (`Desktop\AAA`) contains only this plan. There is no source code, Git repository, tests or other documentation. | Greenfield. There are no existing versions or conventions to reuse; T-001 and T-002 establish them. |
+| F1 | *Original finding (2026-10-20, now superseded):* the folder contained only this plan. *As of 2026-10-21 the repository holds* a Git history (commit `37c3e5a`, `origin` = GitHub, branch `main`), the `Core`, `Infrastructure` and `Seeder` projects, two migrations, and 33 test methods in the unit and integration projects. There is no `Api` project and no `frontend/`. | Greenfield for Phases 2–3 only. |
 | F2 | The host toolchain could not be inspected. The inspection shell runs in a Linux VM attached to the machine, not in Windows. In that VM: Node `22.23.2`, npm `10.9.8`, Git `2.34.1`; `dotnet`, `ng`, `docker` and `sqlcmd` were **not found**. | These versions may not represent the Windows host. T-001 confirms the host versions, including whether Docker is available, before anything is pinned. |
 | F3 | The folder path contains non-ASCII characters and a space (`C:\Users\משתמש חדש\Desktop\AAA`). | Risk for npm, Angular and Docker tooling (R-07). Develop in an ASCII path such as `C:\dev\request-management`. |
 | F4 | The PDF leaves several behaviours unspecified. | Recorded as assumptions in §3.2. They are not presented as requirements. |
@@ -471,7 +471,7 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Every task's **Status is Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-001 to T-104 are **In Progress** (code written, verification items remaining); every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
@@ -485,7 +485,7 @@ Every task's **Status is Planned**. Each task block lists its description, deliv
 - **Verification:** Command output saved to the README draft.
 
 **T-002: Repository and solution scaffold.**
-- Estimate: 1.5 h · Status: In Progress (code written 2026-10-20; verified locally 2026-10-21: build, 51 unit and 8 integration tests pass, no vulnerable packages; remaining: build succeeds; 0-warnings check, `dotnet format` and first commit still pending)
+- Estimate: 1.5 h · Status: In Progress (code written 2026-10-20; verified locally 2026-10-21: build, 51 unit and 8 integration tests pass, no vulnerable packages; first commit `37c3e5a` exists on `origin/main`; remaining: 0-warnings check and `dotnet format --verify-no-changes` still pending)
 - **Description:**
   - `git init` and the GitHub remote.
   - `.gitignore`, `.editorconfig`, and `Directory.Build.props` (nullable on, warnings as errors).
@@ -936,7 +936,7 @@ T-001 → T-002 → T-101 → T-102 → T-103 → T-104 → T-201 → T-202 → 
 
 ## 10. Requirement Traceability Matrix
 
-All statuses are **Planned**. In the Evidence column:
+Nothing is `Done`. Requirements covered by the in-progress tasks (T-001 to T-104) have code but incomplete verification; all others are **Planned**. In the Evidence column:
 - *Test* means an automated test;
 - *Review* means a reviewer reads the code or document and records the result;
 - *Smoke* means a manual check in T-604.
@@ -1076,7 +1076,7 @@ All statuses are **Planned**. In the Evidence column:
 **Coverage:**
 - All 77 catalogue entries in §2 have at least one task and one planned evidence item.
 - R0.6 is the exception: it is context and has no separate evidence.
-- Nothing is verified yet.
+- Nothing is `Done` yet. Only the data-layer items (R0.2–R0.5) have code and tests; their remaining verification items are listed per task in §7.
 
 **Evidence strength:**
 - **Automated tests:** R1.2–R1.7, R2.x, R3.x, R4.1, R5.1–R5.5, R7.1–R7.3, R8.x, R10.6, R10.7.

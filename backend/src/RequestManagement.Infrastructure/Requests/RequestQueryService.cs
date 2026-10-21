@@ -1,0 +1,151 @@
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
+using RequestManagement.Core.Domain;
+using RequestManagement.Core.Requests;
+using RequestManagement.Infrastructure.Persistence;
+
+namespace RequestManagement.Infrastructure.Requests;
+
+/// <summary>
+/// Search and lookup of requests. One composed <see cref="IQueryable{T}"/> is translated to SQL:
+/// WHERE (filters), ORDER BY, OFFSET/FETCH and a COUNT over the same predicate.
+/// Nothing is materialized before paging; entities are never tracked or returned (R1.1, R1.9).
+/// </summary>
+public sealed class RequestQueryService(AppDbContext db, StatusTransitionPolicy policy) : IRequestQueryService
+{
+    private const string LikeEscape = "\\";
+
+    public async Task<PagedResult<RequestDto>> SearchAsync(RequestSearchQuery query, CancellationToken ct)
+    {
+        var filtered = ApplyFilters(db.Requests.AsNoTracking(), query);
+
+        var totalCount = await filtered.CountAsync(ct);
+
+        var skip = (long)(query.Page - 1) * query.PageSize;
+        if (skip >= totalCount)
+        {
+            // Beyond the last page (this also avoids int overflow in Skip).
+            return new PagedResult<RequestDto>([], query.Page, query.PageSize, totalCount);
+        }
+
+        var rows = await ApplySort(filtered, query.SortField, query.SortDescending)
+            .Skip((int)skip)
+            .Take(query.PageSize)
+            .Select(ProjectToRow)
+            .ToListAsync(ct);
+
+        return new PagedResult<RequestDto>(rows.ConvertAll(ToDto), query.Page, query.PageSize, totalCount);
+    }
+
+    public async Task<RequestDto?> GetByIdAsync(int id, CancellationToken ct)
+    {
+        var row = await db.Requests.AsNoTracking()
+            .Where(r => r.Id == id)
+            .Select(ProjectToRow)
+            .SingleOrDefaultAsync(ct);
+
+        return row is null ? null : ToDto(row);
+    }
+
+    /// <summary>The filtered, unsorted, unpaged query. Internal so the SQL shape can be asserted in tests.</summary>
+    internal static IQueryable<Request> ApplyFilters(IQueryable<Request> requests, RequestSearchQuery query)
+    {
+        if (query.Search?.Trim() is { Length: > 0 } search)
+        {
+            var pattern = $"%{EscapeLike(search)}%";
+            requests = requests.Where(r =>
+                EF.Functions.Like(r.Title, pattern, LikeEscape)
+                || EF.Functions.Like(r.OrganizationName, pattern, LikeEscape));
+        }
+
+        if (query.Status is { Length: > 0 })
+        {
+            var statuses = query.Status.Distinct().ToArray();
+            requests = requests.Where(r => statuses.Contains(r.Status));
+        }
+
+        if (query.Priority is { Length: > 0 })
+        {
+            var priorities = query.Priority.Distinct().ToArray();
+            requests = requests.Where(r => priorities.Contains(r.Priority));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.OrganizationName))
+        {
+            var prefix = $"{EscapeLike(query.OrganizationName.Trim())}%";
+            requests = requests.Where(r => EF.Functions.Like(r.OrganizationName, prefix, LikeEscape));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.AssignedTo))
+        {
+            var assignedTo = query.AssignedTo.Trim();
+            requests = requests.Where(r => r.AssignedTo == assignedTo);
+        }
+
+        if (query.CreatedFrom is { } from)
+        {
+            var fromUtc = from.UtcDateTime;
+            requests = requests.Where(r => r.CreatedAt >= fromUtc);
+        }
+
+        if (query.CreatedTo is { } to)
+        {
+            var toUtc = to.UtcDateTime;
+            requests = requests.Where(r => r.CreatedAt < toUtc);
+        }
+
+        return requests;
+    }
+
+    /// <summary>Whitelisted sort with Id as the deterministic tie-breaker (same direction, decision D8).</summary>
+    internal static IOrderedQueryable<Request> ApplySort(IQueryable<Request> requests, RequestSortField field, bool descending) =>
+        field switch
+        {
+            RequestSortField.UpdatedAt => Order(requests, r => r.UpdatedAt, descending),
+            RequestSortField.Priority => Order(requests, r => r.Priority, descending),
+            RequestSortField.Status => Order(requests, r => r.Status, descending),
+            RequestSortField.Title => Order(requests, r => r.Title, descending),
+            _ => Order(requests, r => r.CreatedAt, descending),
+        };
+
+    /// <summary>Escapes LIKE wildcards so user input is matched literally (assumption A5).</summary>
+    internal static string EscapeLike(string value) =>
+        value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal)
+            .Replace("[", "\\[", StringComparison.Ordinal);
+
+    private static IOrderedQueryable<Request> Order<TKey>(
+        IQueryable<Request> requests, Expression<Func<Request, TKey>> key, bool descending) =>
+        descending
+            ? requests.OrderByDescending(key).ThenByDescending(r => r.Id)
+            : requests.OrderBy(key).ThenBy(r => r.Id);
+
+    private static readonly Expression<Func<Request, RequestRow>> ProjectToRow = r => new RequestRow(
+        r.Id, r.Title, r.OrganizationName, r.Status, r.Priority, r.AssignedTo, r.CreatedAt, r.UpdatedAt, r.Version);
+
+    private RequestDto ToDto(RequestRow row) => new(
+        row.Id,
+        row.Title,
+        row.OrganizationName,
+        row.Status,
+        row.Priority,
+        row.AssignedTo,
+        row.CreatedAt,
+        row.UpdatedAt,
+        Convert.ToBase64String(row.Version),
+        policy.GetAllowedNextStatuses(row.Status));
+
+    // Server-side projection target: only the needed columns are selected.
+    private sealed record RequestRow(
+        int Id,
+        string Title,
+        string OrganizationName,
+        RequestStatus Status,
+        RequestPriority Priority,
+        string? AssignedTo,
+        DateTime CreatedAt,
+        DateTime UpdatedAt,
+        byte[] Version);
+}

@@ -13,6 +13,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RequestManagement.Infrastru
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RequestManagement.Seeder", "src\RequestManagement.Seeder\RequestManagement.Seeder.csproj", "{DEB1AB19-303B-565F-94B6-B76BDC6C5235}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RequestManagement.Api", "src\RequestManagement.Api\RequestManagement.Api.csproj", "{6D2B1C47-3A5E-4F0B-9C28-7E1A5B93D4F2}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RequestManagement.UnitTests", "tests\RequestManagement.UnitTests\RequestManagement.UnitTests.csproj", "{08ACE9C4-FAD2-53C8-843D-A8576D17848E}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RequestManagement.IntegrationTests", "tests\RequestManagement.IntegrationTests\RequestManagement.IntegrationTests.csproj", "{90C0BF48-4415-539F-A3B1-14C1D5B62798}"
@@ -43,6 +45,10 @@ Global
 		{90C0BF48-4415-539F-A3B1-14C1D5B62798}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90C0BF48-4415-539F-A3B1-14C1D5B62798}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90C0BF48-4415-539F-A3B1-14C1D5B62798}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D2B1C47-3A5E-4F0B-9C28-7E1A5B93D4F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D2B1C47-3A5E-4F0B-9C28-7E1A5B93D4F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D2B1C47-3A5E-4F0B-9C28-7E1A5B93D4F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D2B1C47-3A5E-4F0B-9C28-7E1A5B93D4F2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -53,5 +59,6 @@ Global
 		{DEB1AB19-303B-565F-94B6-B76BDC6C5235} = {DC53702F-2396-5649-A6B5-6C5A35B7A4AB}
 		{08ACE9C4-FAD2-53C8-843D-A8576D17848E} = {35FDC1E7-7EE4-58D1-BFCA-7AA81737A01E}
 		{90C0BF48-4415-539F-A3B1-14C1D5B62798} = {35FDC1E7-7EE4-58D1-BFCA-7AA81737A01E}
+		{6D2B1C47-3A5E-4F0B-9C28-7E1A5B93D4F2} = {DC53702F-2396-5649-A6B5-6C5A35B7A4AB}
 	EndGlobalSection
 EndGlobal
