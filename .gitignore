@@ -1,0 +1,23 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+*.trx
+
+# Node / Angular (frontend, later phases)
+node_modules/
+dist/
+.angular/
+
+# Local secrets and environment
+.env
+*.local.json
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+Thumbs.db
+.DS_Store

@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Domain types only. Must not reference EF Core or ASP.NET Core (plan §4.1). -->
+</Project>

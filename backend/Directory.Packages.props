@@ -1,0 +1,23 @@
+<Project>
+  <!-- Central package versions: one place to see and upgrade every dependency. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Data access (SQL Server provider brings Microsoft.Data.SqlClient, used for SqlBulkCopy) -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13" />
+    <!-- Seeder configuration: environment variables and user-secrets (no secrets in the repo) -->
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.0" />
+    <!-- Security pin: transitive via Microsoft.Data.SqlClient 6.1.7 (needs >= 9.0.11); 9.0.21 fixes GHSA-2fmv-rv2c-59x7 and GHSA-846f-f764-76mx -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
+    <!-- Tests (D12: xUnit with built-in asserts) -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.1" />
+    <!-- Integration tests against real SQL Server (D11) -->
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
+  </ItemGroup>
+</Project>
