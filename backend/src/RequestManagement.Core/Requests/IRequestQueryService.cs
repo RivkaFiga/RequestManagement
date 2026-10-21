@@ -8,4 +8,7 @@ public interface IRequestQueryService
 
     /// <summary>Returns the request, or <c>null</c> when it does not exist.</summary>
     Task<RequestDto?> GetByIdAsync(int id, CancellationToken ct);
+
+    /// <summary>Counts all requests by status and by priority (two server-side GROUP BY queries) plus the total.</summary>
+    Task<RequestSummaryDto> GetSummaryAsync(CancellationToken ct);
 }

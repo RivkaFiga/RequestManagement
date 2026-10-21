@@ -23,6 +23,16 @@ public sealed class RequestsController(IRequestQueryService requests, ILogger<Re
         return result;
     }
 
+    /// <summary>Counts of all requests by status and by priority, plus the total (ignores list filters).</summary>
+    [HttpGet("summary")]
+    [ProducesResponseType<RequestSummaryDto>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<RequestSummaryDto>> GetSummary(CancellationToken ct)
+    {
+        var summary = await requests.GetSummaryAsync(ct);
+        logger.LogDebug("Summary computed for {Total} requests.", summary.Total);
+        return summary;
+    }
+
     /// <summary>Gets one request.</summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType<RequestDto>(StatusCodes.Status200OK)]

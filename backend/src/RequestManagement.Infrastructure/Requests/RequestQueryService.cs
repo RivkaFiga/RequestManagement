@@ -11,7 +11,7 @@ namespace RequestManagement.Infrastructure.Requests;
 /// WHERE (filters), ORDER BY, OFFSET/FETCH and a COUNT over the same predicate.
 /// Nothing is materialized before paging; entities are never tracked or returned (R1.1, R1.9).
 /// </summary>
-public sealed class RequestQueryService(AppDbContext db, StatusTransitionPolicy policy) : IRequestQueryService
+public sealed class RequestQueryService(AppDbContext db, StatusTransitionPolicy policy, TimeProvider clock) : IRequestQueryService
 {
     private const string LikeEscape = "\\";
 
@@ -45,6 +45,37 @@ public sealed class RequestQueryService(AppDbContext db, StatusTransitionPolicy 
             .SingleOrDefaultAsync(ct);
 
         return row is null ? null : ToDto(row);
+    }
+
+    public async Task<RequestSummaryDto> GetSummaryAsync(CancellationToken ct)
+    {
+        // Two GROUP BY queries executed by SQL Server; only one small row per group is transferred (A4, R1.6).
+        var byStatus = await CountByStatus(db.Requests.AsNoTracking()).ToListAsync(ct);
+        var byPriority = await CountByPriority(db.Requests.AsNoTracking()).ToListAsync(ct);
+
+        return BuildSummary(byStatus, byPriority, clock.GetUtcNow().UtcDateTime);
+    }
+
+    /// <summary>SELECT Status, COUNT(*) ... GROUP BY Status. Internal so the SQL shape can be asserted in tests.</summary>
+    internal static IQueryable<StatusCountDto> CountByStatus(IQueryable<Request> requests) =>
+        requests.GroupBy(r => r.Status).Select(g => new StatusCountDto(g.Key, g.Count()));
+
+    /// <summary>SELECT Priority, COUNT(*) ... GROUP BY Priority.</summary>
+    internal static IQueryable<PriorityCountDto> CountByPriority(IQueryable<Request> requests) =>
+        requests.GroupBy(r => r.Priority).Select(g => new PriorityCountDto(g.Key, g.Count()));
+
+    /// <summary>Adds the groups that have no rows (count 0), orders by enum value and derives the total.</summary>
+    internal static RequestSummaryDto BuildSummary(
+        IReadOnlyList<StatusCountDto> byStatus, IReadOnlyList<PriorityCountDto> byPriority, DateTime generatedAt)
+    {
+        var statuses = Enum.GetValues<RequestStatus>()
+            .Select(status => new StatusCountDto(status, byStatus.Where(c => c.Status == status).Sum(c => c.Count)))
+            .ToList();
+        var priorities = Enum.GetValues<RequestPriority>()
+            .Select(priority => new PriorityCountDto(priority, byPriority.Where(c => c.Priority == priority).Sum(c => c.Count)))
+            .ToList();
+
+        return new RequestSummaryDto(statuses.Sum(c => c.Count), statuses, priorities, generatedAt);
     }
 
     /// <summary>The filtered, unsorted, unpaged query. Internal so the SQL shape can be asserted in tests.</summary>
