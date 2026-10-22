@@ -52,6 +52,21 @@ public sealed class RequestsController(
         return request;
     }
 
+    /// <summary>The status changes of one request, newest first (an empty array when it has never changed).</summary>
+    [HttpGet("{id:int}/history")]
+    [ProducesResponseType<IReadOnlyList<StatusHistoryEntryDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<StatusHistoryEntryDto>>> GetHistory(int id, CancellationToken ct)
+    {
+        var history = await requests.GetHistoryAsync(id, ct);
+        if (history is null)
+        {
+            return Problem(statusCode: StatusCodes.Status404NotFound, title: "Request not found.", detail: $"No request with id {id} exists.");
+        }
+
+        return Ok(history);
+    }
+
     /// <summary>Changes the status of a request (optimistic concurrency, recorded in the history).</summary>
     /// <remarks>
     /// Send the <c>rowVersion</c> from the last response. 409 means someone else changed the request first

@@ -47,6 +47,27 @@ public sealed class RequestQueryService(AppDbContext db, StatusTransitionPolicy 
         return row?.ToDto(policy);
     }
 
+    public async Task<IReadOnlyList<StatusHistoryEntryDto>?> GetHistoryAsync(int id, CancellationToken ct)
+    {
+        if (!await db.Requests.AnyAsync(r => r.Id == id, ct))
+        {
+            return null;
+        }
+
+        return await HistoryOf(db.RequestStatusHistory.AsNoTracking(), id).ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// The history of one request, newest first. <c>Id</c> breaks ties between changes with the same timestamp,
+    /// so the order is deterministic. Internal so the SQL shape can be asserted in tests.
+    /// </summary>
+    internal static IQueryable<StatusHistoryEntryDto> HistoryOf(IQueryable<RequestStatusHistoryEntry> history, int requestId) =>
+        history
+            .Where(h => h.RequestId == requestId)
+            .OrderByDescending(h => h.ChangedAt)
+            .ThenByDescending(h => h.Id)
+            .Select(h => new StatusHistoryEntryDto(h.Id, h.RequestId, h.PreviousStatus, h.NewStatus, h.ChangedAt, h.ChangedBy));
+
     public async Task<RequestSummaryDto> GetSummaryAsync(CancellationToken ct)
     {
         // Two GROUP BY queries executed by SQL Server; only one small row per group is transferred (A4, R1.6).
