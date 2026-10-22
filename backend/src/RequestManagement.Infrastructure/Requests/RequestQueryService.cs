@@ -31,20 +31,20 @@ public sealed class RequestQueryService(AppDbContext db, StatusTransitionPolicy 
         var rows = await ApplySort(filtered, query.SortField, query.SortDescending)
             .Skip((int)skip)
             .Take(query.PageSize)
-            .Select(ProjectToRow)
+            .Select(RequestRow.Projection)
             .ToListAsync(ct);
 
-        return new PagedResult<RequestDto>(rows.ConvertAll(ToDto), query.Page, query.PageSize, totalCount);
+        return new PagedResult<RequestDto>(rows.ConvertAll(row => row.ToDto(policy)), query.Page, query.PageSize, totalCount);
     }
 
     public async Task<RequestDto?> GetByIdAsync(int id, CancellationToken ct)
     {
         var row = await db.Requests.AsNoTracking()
             .Where(r => r.Id == id)
-            .Select(ProjectToRow)
+            .Select(RequestRow.Projection)
             .SingleOrDefaultAsync(ct);
 
-        return row is null ? null : ToDto(row);
+        return row?.ToDto(policy);
     }
 
     public async Task<RequestSummaryDto> GetSummaryAsync(CancellationToken ct)
@@ -152,31 +152,4 @@ public sealed class RequestQueryService(AppDbContext db, StatusTransitionPolicy 
         descending
             ? requests.OrderByDescending(key).ThenByDescending(r => r.Id)
             : requests.OrderBy(key).ThenBy(r => r.Id);
-
-    private static readonly Expression<Func<Request, RequestRow>> ProjectToRow = r => new RequestRow(
-        r.Id, r.Title, r.OrganizationName, r.Status, r.Priority, r.AssignedTo, r.CreatedAt, r.UpdatedAt, r.Version);
-
-    private RequestDto ToDto(RequestRow row) => new(
-        row.Id,
-        row.Title,
-        row.OrganizationName,
-        row.Status,
-        row.Priority,
-        row.AssignedTo,
-        row.CreatedAt,
-        row.UpdatedAt,
-        Convert.ToBase64String(row.Version),
-        policy.GetAllowedNextStatuses(row.Status));
-
-    // Server-side projection target: only the needed columns are selected.
-    private sealed record RequestRow(
-        int Id,
-        string Title,
-        string OrganizationName,
-        RequestStatus Status,
-        RequestPriority Priority,
-        string? AssignedTo,
-        DateTime CreatedAt,
-        DateTime UpdatedAt,
-        byte[] Version);
 }

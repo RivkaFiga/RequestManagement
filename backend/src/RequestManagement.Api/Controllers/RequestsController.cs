@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
+using RequestManagement.Api.Http;
 using RequestManagement.Core.Requests;
 
 namespace RequestManagement.Api.Controllers;
 
 [ApiController]
 [Route("api/requests")]
-public sealed class RequestsController(IRequestQueryService requests, ILogger<RequestsController> logger) : ControllerBase
+public sealed class RequestsController(
+    IRequestQueryService requests,
+    IRequestStatusService statuses,
+    ILogger<RequestsController> logger) : ControllerBase
 {
     /// <summary>Searches, filters, sorts and pages requests.</summary>
     /// <remarks>
@@ -46,5 +50,46 @@ public sealed class RequestsController(IRequestQueryService requests, ILogger<Re
         }
 
         return request;
+    }
+
+    /// <summary>Changes the status of a request (optimistic concurrency, recorded in the history).</summary>
+    /// <remarks>
+    /// Send the <c>rowVersion</c> from the last response. 409 means someone else changed the request first
+    /// (the body carries <c>currentStatus</c> and <c>currentRowVersion</c>); 422 means the transition is not allowed.
+    /// The optional <c>X-User-Name</c> header (at most 100 characters, not authenticated) is stored as <c>changedBy</c>.
+    /// </remarks>
+    [HttpPatch("{id:int}/status")]
+    [ProducesResponseType<RequestDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<RequestDto>> UpdateStatus(int id, UpdateStatusRequest body, CancellationToken ct)
+    {
+        if (!HttpContext.TryGetChangedBy(out var changedBy, out var headerError))
+        {
+            ModelState.AddModelError(ChangedBy.HeaderName, headerError!);
+            return ValidationProblem(ModelState);
+        }
+
+        var result = await statuses.UpdateStatusAsync(id, body.Status!.Value, body.RowVersionBytes, changedBy, ct);
+        switch (result.Outcome)
+        {
+            case StatusUpdateOutcome.Updated:
+                return result.Request!;
+
+            case StatusUpdateOutcome.NotFound:
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Request not found.", detail: result.Error);
+
+            case StatusUpdateOutcome.Conflict:
+                var conflict = ProblemDetailsFactory.CreateProblemDetails(
+                    HttpContext, StatusCodes.Status409Conflict, title: "Concurrency conflict.", detail: result.Error);
+                conflict.Extensions["currentStatus"] = result.CurrentStatus;
+                conflict.Extensions["currentRowVersion"] = result.CurrentRowVersion;
+                return Conflict(conflict);
+
+            default:
+                return Problem(statusCode: StatusCodes.Status422UnprocessableEntity, title: "Status transition not allowed.", detail: result.Error);
+        }
     }
 }
