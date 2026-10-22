@@ -471,7 +471,7 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Tasks T-001 to T-104 are **In Progress** (code written, verification items remaining); every other task is **Planned**, except T-204, T-205, T-206, T-207, T-208 and T-404, which are **Done**, and T-405, which is **In Progress**. Code for some other Phase 2 tasks (T-201 to T-203) exists in the repository, but their statuses below have not been re-verified yet. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-001 to T-103 are **In Progress** (code written, verification items remaining); every other task is **Planned**, except T-104, T-204, T-205, T-206, T-207, T-208 and T-404, which are **Done**, and T-405, which is **In Progress**. Code for some other Phase 2 tasks (T-201 to T-203) exists in the repository, but their statuses below have not been re-verified yet. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
@@ -537,7 +537,7 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** `dotnet ef database update` in both directions, then a schema inspection.
 
 **T-104: Deterministic seeder.**
-- Estimate: 2.5 h · Status: In Progress (code written 2026-10-20; verified locally 2026-10-21: build, 51 unit and 8 integration tests pass, no vulnerable packages; remaining: seeder tests pass, including repeatable reset and reseed; the 100,000-row run, checksum comparison and run time still pending)
+- Estimate: 2.5 h · Status: Done (evidence: 2026-10-22 local run on a scratch database `RequestManagement_SeedCheck` (SQL Server 2022 in Docker, Release build, `Seeder --reset --count 100000`, default seed 20261020); not yet committed. Run 1: exit 0, 100,000 rows, checksum `-1953119262`, insert 6.7 s, total process 9.4 s. Run 2: exit 0, 100,000 rows, checksum `-1953119262`, insert 6.5 s, total process 9.7 s. An independent `COUNT(*)` after each run returned 100,000, and the two status and priority distributions were identical. 27 seeder unit tests (`SeedDataGenerator`, `SeederArguments`) passed in this session. The seeder integration tests (`DatabaseSeederTests`) were not re-run in this session because a running `RequestManagement.Api` process locked the build output; they are covered by the earlier integration runs recorded for T-205 to T-208. Run times are from a single pair of runs on one machine and are not a benchmark.)
 - **Description:** Seeding logic in `Infrastructure` (D10). A `Seeder` console with `--count` (default 100,000) and `--reset`.
 - **Deliverable:** The seeder.
 - **Requirements:** R0.3, R0.5.
