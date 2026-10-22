@@ -2,9 +2,9 @@
 
 | Item | Value |
 |---|---|
-| Document status | Draft v2, reviewed against the assignment PDF. **Implementation has started: Phase 0–1 (foundation, data layer, seeder) is in the repository; Phase 2 onward (API, Angular, performance, docs) does not exist yet.** |
+| Document status | Draft v2, reviewed against the assignment PDF. **Implementation has started: Phase 0–1 (foundation, data layer, seeder) is in the repository; Phase 2 is partly implemented (the `Api` project and the status-update endpoint exist; only the tasks marked `Done` below were verified). Angular, performance and docs do not exist yet.** |
 | Date | 2026-10-20 |
-| Verification (local) | 2026-10-21: `dotnet build .\RequestManagement.sln --no-restore` succeeded. Unit tests 51 passed, 0 failed. Integration tests 8 passed, 0 failed (Docker Testcontainers, SQL Server 2022). `dotnet list .\RequestManagement.sln package --vulnerable --include-transitive`: no vulnerable packages in all five projects. No task is marked `Done` yet; see each task's remaining items. |
+| Verification (local) | 2026-10-21: `dotnet build .\RequestManagement.sln --no-restore` succeeded. Unit tests 51 passed, 0 failed. Integration tests 8 passed, 0 failed (Docker Testcontainers, SQL Server 2022). `dotnet list .\RequestManagement.sln package --vulnerable --include-transitive`: no vulnerable packages in all five projects. 2026-10-22 (T-205): build 0 warnings, `dotnet format --verify-no-changes` clean, unit tests 124 passed, integration tests 75 passed, 0 failed. 2026-10-22 (T-206): unit tests 127 passed, integration tests 82 passed, 0 failed. T-205, T-206 and T-404 are marked `Done`; every other task keeps the status in its block. |
 | Source of truth | Assignment PDF: Full Stack developer test, level C (6 pages, Hebrew) |
 | Status convention | `Planned` → `In Progress` → `Done (evidence: <commit / test run / file>)`. A task becomes `Done` only when its evidence exists and is linked. |
 | Estimates | Focused-effort estimates in hours. They are not commitments. |
@@ -471,7 +471,7 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Tasks T-001 to T-104 are **In Progress** (code written, verification items remaining); every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-001 to T-104 are **In Progress** (code written, verification items remaining); every other task is **Planned**, except T-205, T-206 and T-404, which are **Done**, and T-405, which is **In Progress**. Code for some other Phase 2 tasks (T-201 to T-204) exists in the repository, but their statuses below have not been re-verified yet. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
@@ -597,8 +597,8 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** A SQL cross-check, IT-7.
 
 **T-205: Single status update with concurrency and audit.**
-- Estimate: 3.0 h · Status: Planned
-- **Description:** The flow in §4.4. A result type is mapped to 200/404/409/422 (D7). The per-item logic is written so that T-207 reuses it.
+- Estimate: 3.0 h · Status: Done (evidence: 2026-10-22 local run, not yet committed. `dotnet build` 0 warnings, `dotnet format --verify-no-changes` clean; unit tests 124 passed, integration tests 75 passed (Testcontainers, SQL Server 2022), 0 failed. Files: `RequestStatusService.cs`, `RequestsController.UpdateStatus`, `RequestStatusApiTests.cs` (IT-2 to IT-5 and the atomicity tests), `UpdateStatusRequestTests.cs`. Link the commit once it exists. Not part of this task: the cache invalidation call is added in T-208.)
+- **Description:** The flow in §4.4. A result type is mapped to 200/404/409/422 (D7). The per-item logic is written so that T-207 reuses it (`RequestStatusService.ApplyAsync` takes an already loaded request).
 - **Deliverable:** `PATCH /api/requests/{id}/status`.
 - **Requirements:** R2.1–R2.5, R3.1, R10.5.
 - **Depends on:** T-203.
@@ -606,8 +606,8 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** IT-2 to IT-5.
 
 **T-206: History endpoint.**
-- Estimate: 1.0 h · Status: Planned
-- **Description:** Returns the history newest first. A missing request returns 404.
+- Estimate: 1.0 h · Status: Done (evidence: 2026-10-22 local run, not yet committed. `dotnet build` 0 warnings, `dotnet format --verify-no-changes` clean; unit tests 127 passed, integration tests 82 passed, 0 failed. Files: `RequestQueryService.GetHistoryAsync`, `RequestsController.GetHistory`, `StatusHistoryEntryDto.cs`, `RequestHistoryApiTests.cs` (IT-8), `RequestHistoryQueryTests.cs`. Link the commit once it exists.)
+- **Description:** Returns the history newest first (`ChangedAt` descending, the newest `Id` first when timestamps are equal). A missing request returns 404 ProblemDetails; a request without changes returns 200 and `[]`.
 - **Deliverable:** `GET /api/requests/{id}/history`.
 - **Requirements:** R3.2.
 - **Depends on:** T-205.
@@ -725,7 +725,7 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 - **Verification:** `dotnet test`.
 
 **T-404: Integration tests IT-2 to IT-5.**
-- Estimate: 2.5 h · Status: Planned
+- Estimate: 2.5 h · Status: Done (evidence: 2026-10-22 local run, not yet committed. `RequestStatusApiTests.cs`: all 25 tests pass in the full integration run (75 passed, 0 failed). IT-4 (`TwoParallelUpdatesWithTheSameVersion_*`) passed 20 of 20 consecutive separate `dotnet test` runs on the final code. Link the commit once it exists.)
 - **Requirements:** R8.4, R2.1–R2.5, R3.1, R10.6.
 - **Depends on:** T-401, T-205.
 - **Acceptance criteria:** All tests pass. IT-4 passes 20 consecutive runs.
@@ -733,7 +733,7 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 
 **T-405: Integration tests IT-6 to IT-8.**
 - Estimate: 2.0 h · Status: Planned
-- **Requirements:** R4.1–R4.3, R7.3, R3.2.
+- Estimate: 2.0 h · Status: In Progress (IT-8 is implemented and passes as `RequestHistoryApiTests`, see T-206; remaining: IT-6 and IT-7, which wait for T-207 and T-208)
 - **Depends on:** T-401, T-206, T-207, T-208.
 - **Acceptance criteria:** All tests pass.
 - **Verification:** `dotnet test`.
@@ -936,7 +936,7 @@ T-001 → T-002 → T-101 → T-102 → T-103 → T-104 → T-201 → T-202 → 
 
 ## 10. Requirement Traceability Matrix
 
-Nothing is `Done`. Requirements covered by the in-progress tasks (T-001 to T-104) have code but incomplete verification; all others are **Planned**. In the Evidence column:
+Task-level status is in §7. Requirement rows span several tasks, so none is complete yet; the parts verified on 2026-10-22 through T-205 and T-404 are the API-level behaviour of R2.1 (PATCH and history), R2.2, R2.3, R2.4 and R3.1 (single update), by IT-2 to IT-5, and R3.2 by IT-8. Pending: IT-6, FE-2, T-207 and the rest of each row. Requirements covered by the in-progress tasks (T-001 to T-104) have code but incomplete verification; all others are **Planned**. In the Evidence column:
 - *Test* means an automated test;
 - *Review* means a reviewer reads the code or document and records the result;
 - *Smoke* means a manual check in T-604.

@@ -35,6 +35,7 @@ builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
     options.UseSqlServer(connectionString);
 });
 builder.Services.AddScoped<IRequestQueryService, RequestQueryService>();
+builder.Services.AddScoped<IRequestStatusService, RequestStatusService>();
 
 var app = builder.Build();
 
