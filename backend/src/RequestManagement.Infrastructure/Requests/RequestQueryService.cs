@@ -11,7 +11,8 @@ namespace RequestManagement.Infrastructure.Requests;
 /// WHERE (filters), ORDER BY, OFFSET/FETCH and a COUNT over the same predicate.
 /// Nothing is materialized before paging; entities are never tracked or returned (R1.1, R1.9).
 /// </summary>
-public sealed class RequestQueryService(AppDbContext db, StatusTransitionPolicy policy, TimeProvider clock) : IRequestQueryService
+public sealed class RequestQueryService(
+    AppDbContext db, StatusTransitionPolicy policy, TimeProvider clock, RequestSummaryCache summaryCache) : IRequestQueryService
 {
     private const string LikeEscape = "\\";
 
@@ -68,7 +69,11 @@ public sealed class RequestQueryService(AppDbContext db, StatusTransitionPolicy 
             .ThenByDescending(h => h.Id)
             .Select(h => new StatusHistoryEntryDto(h.Id, h.RequestId, h.PreviousStatus, h.NewStatus, h.ChangedAt, h.ChangedBy));
 
-    public async Task<RequestSummaryDto> GetSummaryAsync(CancellationToken ct)
+    /// <summary>Served from <see cref="RequestSummaryCache"/>; on a miss it is computed by <see cref="ComputeSummaryAsync"/>.</summary>
+    public Task<RequestSummaryDto> GetSummaryAsync(CancellationToken ct) =>
+        summaryCache.GetOrCreateAsync(ComputeSummaryAsync, ct);
+
+    private async Task<RequestSummaryDto> ComputeSummaryAsync(CancellationToken ct)
     {
         // Two GROUP BY queries executed by SQL Server; only one small row per group is transferred (A4, R1.6).
         var byStatus = await CountByStatus(db.Requests.AsNoTracking()).ToListAsync(ct);

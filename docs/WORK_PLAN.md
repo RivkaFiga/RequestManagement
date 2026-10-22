@@ -471,7 +471,7 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Tasks T-001 to T-104 are **In Progress** (code written, verification items remaining); every other task is **Planned**, except T-205, T-206 and T-404, which are **Done**, and T-405, which is **In Progress**. Code for some other Phase 2 tasks (T-201 to T-204) exists in the repository, but their statuses below have not been re-verified yet. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-001 to T-104 are **In Progress** (code written, verification items remaining); every other task is **Planned**, except T-204, T-205, T-206, T-207, T-208 and T-404, which are **Done**, and T-405, which is **In Progress**. Code for some other Phase 2 tasks (T-201 to T-203) exists in the repository, but their statuses below have not been re-verified yet. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
@@ -588,7 +588,7 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** IT-5.
 
 **T-204: Summary aggregations.**
-- Estimate: 1.5 h · Status: Planned
+- Estimate: 1.5 h · Status: Done (evidence: 2026-10-22 local run, not yet committed. `RequestSummaryApiTests` compares the endpoint with independent hand-written GROUP BY SQL on a known distribution and checks that both lists add up to the total; `RequestSummaryTests` asserts the two GROUP BY queries and the zero-filled, enum-ordered shape; the "fresh after an update" part of IT-7 is covered by `RequestSummaryCacheApiTests` (T-208). Same full run as T-208: unit tests 164 passed, integration tests 125 passed. Link the commit once it exists.)
 - **Description:** Two server-side GROUP BY queries (Status, Priority) plus the total (A4).
 - **Deliverable:** `GET /api/requests/summary`.
 - **Requirements:** R1.6.
@@ -624,7 +624,7 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** UT-3, IT-6.
 
 **T-208: Summary cache and invalidation.**
-- Estimate: 2.0 h · Status: Planned
+- Estimate: 2.0 h · Status: Done (evidence: 2026-10-22 local run, not yet committed. `dotnet build` 0 warnings, `dotnet format --verify-no-changes` clean; unit tests 164 passed, integration tests 125 passed (Testcontainers, SQL Server 2022), 0 failed. Files: `RequestSummaryCache.cs`, `SummaryCacheOptions.cs`, `RequestQueryService.GetSummaryAsync`, `RequestStatusService` (invalidation after the commit in the single update and, once in a `finally`, in the bulk update), `Program.cs` and `appsettings.json` (`SummaryCache:Enabled`, `SummaryCache:ExpirationSeconds`, validated at startup), `RequestSummaryCacheTests.cs` (UT-4), `RequestSummaryCacheApiTests.cs` (IT-7). The "cache hit issues no SQL" criterion is measured with an EF Core command-counting interceptor (0 commands on a hit, 2 on a miss), not with the Development SQL log, which was not run. The generation guard is covered by a unit test and by a forced interleaving against SQL Server; both fail when the guard is removed, and the IT-7 tests fail when the invalidation calls are removed. Not part of this task: README documentation of the reasoning and the scale-out description (R7.4, R7.5: T-602), and the B2 measurement. Link the commit once it exists.)
 - **Description:** `RequestSummaryCache` (§4.5), with its two configuration keys. Invalidation is called from the code paths of T-205 and T-207 after commit.
 - **Deliverable:** A cached summary.
 - **Requirements:** R7.1–R7.3.
@@ -733,7 +733,7 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 
 **T-405: Integration tests IT-6 to IT-8.**
 - Estimate: 2.0 h · Status: Planned
-- Estimate: 2.0 h · Status: In Progress (IT-8 is implemented and passes as `RequestHistoryApiTests`, see T-206; IT-6 is implemented and passes as `RequestBulkStatusApiTests`, see T-207; remaining: IT-7, which waits for T-208)
+- Estimate: 2.0 h · Status: In Progress (IT-8 is implemented and passes as `RequestHistoryApiTests`, see T-206; IT-6 is implemented and passes as `RequestBulkStatusApiTests`, see T-207; IT-7 is implemented and passes as `RequestSummaryCacheApiTests`, see T-208. All three are implemented and pass; the status is left for review because T-401 has not been re-verified)
 - **Depends on:** T-401, T-206, T-207, T-208.
 - **Acceptance criteria:** All tests pass.
 - **Verification:** `dotnet test`.
@@ -936,7 +936,7 @@ T-001 → T-002 → T-101 → T-102 → T-103 → T-104 → T-201 → T-202 → 
 
 ## 10. Requirement Traceability Matrix
 
-Task-level status is in §7. Requirement rows span several tasks, so none is complete yet; the parts verified on 2026-10-22 through T-205, T-207 and T-404 are the API-level behaviour of R2.1 (PATCH and history), R2.2, R2.3, R2.4 and R3.1 (single and bulk update), by IT-2 to IT-6, R3.2 by IT-8, and the API behaviour of R4.1 to R4.3 by UT-3 and IT-6 (the README documentation of R4.2 and R4.3 is T-602). Pending: FE-2 and the rest of each row. Requirements covered by the in-progress tasks (T-001 to T-104) have code but incomplete verification; all others are **Planned**. In the Evidence column:
+Task-level status is in §7. Requirement rows span several tasks, so none is complete yet; the parts verified on 2026-10-22 through T-204, T-205, T-207, T-208 and T-404 are the API-level behaviour of R1.6 (summary), R2.1 (PATCH and history), R2.2, R2.3, R2.4 and R3.1 (single and bulk update), by IT-2 to IT-6, R3.2 by IT-8, the API behaviour of R4.1 to R4.3 by UT-3 and IT-6 (the README documentation of R4.2 and R4.3 is T-602), and R7.1 to R7.3 by UT-4 and IT-7 (R7.4 and R7.5 are documentation, T-602). Pending: FE-2 and the rest of each row. Requirements covered by the in-progress tasks (T-001 to T-104) have code but incomplete verification; all others are **Planned**. In the Evidence column:
 - *Test* means an automated test;
 - *Review* means a reviewer reads the code or document and records the result;
 - *Smoke* means a manual check in T-604.

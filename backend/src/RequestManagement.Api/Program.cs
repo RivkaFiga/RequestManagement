@@ -34,6 +34,12 @@ builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
             "ConnectionStrings__RequestManagement environment variable (see README).");
     options.UseSqlServer(connectionString);
 });
+builder.Services
+    .AddOptions<SummaryCacheOptions>()
+    .Bind(builder.Configuration.GetSection(SummaryCacheOptions.SectionName))
+    .Validate(options => options.ExpirationSeconds > 0, $"{SummaryCacheOptions.SectionName}:ExpirationSeconds must be greater than 0.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<RequestSummaryCache>();
 builder.Services.AddScoped<IRequestQueryService, RequestQueryService>();
 builder.Services.AddScoped<IRequestStatusService, RequestStatusService>();
 

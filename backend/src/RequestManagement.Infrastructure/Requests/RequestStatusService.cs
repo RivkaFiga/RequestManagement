@@ -23,15 +23,25 @@ public sealed class RequestStatusService(
     AppDbContext db,
     StatusTransitionPolicy policy,
     TimeProvider clock,
+    RequestSummaryCache summaryCache,
     ILogger<RequestStatusService> logger) : IRequestStatusService
 {
     public async Task<StatusUpdateResult> UpdateStatusAsync(
         int id, RequestStatus newStatus, byte[] rowVersion, string changedBy, CancellationToken ct)
     {
         var request = await db.Requests.SingleOrDefaultAsync(r => r.Id == id, ct);
-        return request is null
-            ? StatusUpdateResult.NotFound(id)
-            : await ApplyAsync(request, newStatus, rowVersion, changedBy, ct);
+        if (request is null)
+        {
+            return StatusUpdateResult.NotFound(id);
+        }
+
+        var result = await ApplyAsync(request, newStatus, rowVersion, changedBy, ct);
+        if (result.Outcome == StatusUpdateOutcome.Updated)
+        {
+            summaryCache.Invalidate(); // after the commit (plan §4.5)
+        }
+
+        return result;
     }
 
     public async Task<BulkStatusUpdateResultDto> BulkUpdateStatusAsync(
@@ -50,12 +60,26 @@ public sealed class RequestStatusService(
         // Each item goes through the single-update logic and has its own SaveChanges (its own transaction), so a
         // conflict or a rejection affects that item only.
         var results = new List<BulkStatusItemResultDto>(changes.Count);
-        foreach (var change in changes)
+        var anyUpdated = false;
+        try
         {
-            var result = loaded.TryGetValue(change.Id, out var request)
-                ? await ApplyAsync(request, newStatus, change.RowVersion, changedBy, ct)
-                : StatusUpdateResult.NotFound(change.Id);
-            results.Add(BulkStatusItemResultDto.From(change.Id, result));
+            foreach (var change in changes)
+            {
+                var result = loaded.TryGetValue(change.Id, out var request)
+                    ? await ApplyAsync(request, newStatus, change.RowVersion, changedBy, ct)
+                    : StatusUpdateResult.NotFound(change.Id);
+                anyUpdated |= result.Outcome == StatusUpdateOutcome.Updated;
+                results.Add(BulkStatusItemResultDto.From(change.Id, result));
+            }
+        }
+        finally
+        {
+            // Once, after the commits (plan §4.4). In a finally so that an unexpected failure part-way through the
+            // batch cannot leave a cached summary that predates the items already committed.
+            if (anyUpdated)
+            {
+                summaryCache.Invalidate();
+            }
         }
 
         var summary = BulkStatusUpdateResultDto.From(results);
