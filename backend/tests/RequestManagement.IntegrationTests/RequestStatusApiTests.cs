@@ -7,6 +7,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using RequestManagement.Core.Domain;
 using RequestManagement.Core.Requests;
 using RequestManagement.Infrastructure.Persistence;
@@ -315,7 +316,12 @@ public sealed class RequestStatusApiTests(SqlServerFixture sqlServer) : IAsyncLi
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(connectionString).AddInterceptors(interceptors).Options);
 
     private static RequestStatusService CreateService(AppDbContext db) =>
-        new(db, new StatusTransitionPolicy(), TimeProvider.System, NullLogger<RequestStatusService>.Instance);
+        new(
+            db,
+            new StatusTransitionPolicy(),
+            TimeProvider.System,
+            new RequestSummaryCache(Options.Create(new SummaryCacheOptions()), TimeProvider.System),
+            NullLogger<RequestStatusService>.Instance);
 
     private static DateTime TruncateToMilliseconds(DateTime value) =>
         new(value.Ticks - value.Ticks % TimeSpan.TicksPerMillisecond, DateTimeKind.Utc);

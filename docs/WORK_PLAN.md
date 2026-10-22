@@ -471,7 +471,7 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Tasks T-001 to T-104 are **In Progress** (code written, verification items remaining); every other task is **Planned**, except T-205, T-206 and T-404, which are **Done**, and T-405, which is **In Progress**. Code for some other Phase 2 tasks (T-201 to T-204) exists in the repository, but their statuses below have not been re-verified yet. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-001 to T-104 are **In Progress** (code written, verification items remaining); every other task is **Planned**, except T-204, T-205, T-206, T-207, T-208 and T-404, which are **Done**, and T-405, which is **In Progress**. Code for some other Phase 2 tasks (T-201 to T-203) exists in the repository, but their statuses below have not been re-verified yet. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
@@ -588,7 +588,7 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** IT-5.
 
 **T-204: Summary aggregations.**
-- Estimate: 1.5 h · Status: Planned
+- Estimate: 1.5 h · Status: Done (evidence: 2026-10-22 local run, committed in `f28d1ea` and `3438905` (endpoint and tests) and `459a1e6` (IT-7 part). `RequestSummaryApiTests` compares the endpoint with independent hand-written GROUP BY SQL on a known distribution and checks that both lists add up to the total; `RequestSummaryTests` asserts the two GROUP BY queries and the zero-filled, enum-ordered shape; the "fresh after an update" part of IT-7 is covered by `RequestSummaryCacheApiTests` (T-208). Same full run as T-208: unit tests 164 passed, integration tests 125 passed.)
 - **Description:** Two server-side GROUP BY queries (Status, Priority) plus the total (A4).
 - **Deliverable:** `GET /api/requests/summary`.
 - **Requirements:** R1.6.
@@ -597,7 +597,7 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** A SQL cross-check, IT-7.
 
 **T-205: Single status update with concurrency and audit.**
-- Estimate: 3.0 h · Status: Done (evidence: 2026-10-22 local run, not yet committed. `dotnet build` 0 warnings, `dotnet format --verify-no-changes` clean; unit tests 124 passed, integration tests 75 passed (Testcontainers, SQL Server 2022), 0 failed. Files: `RequestStatusService.cs`, `RequestsController.UpdateStatus`, `RequestStatusApiTests.cs` (IT-2 to IT-5 and the atomicity tests), `UpdateStatusRequestTests.cs`. Link the commit once it exists. Not part of this task: the cache invalidation call is added in T-208.)
+- Estimate: 3.0 h · Status: Done (evidence: 2026-10-22 local run, committed as `1596f61`. `dotnet build` 0 warnings, `dotnet format --verify-no-changes` clean; unit tests 124 passed, integration tests 75 passed (Testcontainers, SQL Server 2022), 0 failed. Files: `RequestStatusService.cs`, `RequestsController.UpdateStatus`, `RequestStatusApiTests.cs` (IT-2 to IT-5 and the atomicity tests), `UpdateStatusRequestTests.cs`. Not part of this task: the cache invalidation call is added in T-208.)
 - **Description:** The flow in §4.4. A result type is mapped to 200/404/409/422 (D7). The per-item logic is written so that T-207 reuses it (`RequestStatusService.ApplyAsync` takes an already loaded request).
 - **Deliverable:** `PATCH /api/requests/{id}/status`.
 - **Requirements:** R2.1–R2.5, R3.1, R10.5.
@@ -606,7 +606,7 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** IT-2 to IT-5.
 
 **T-206: History endpoint.**
-- Estimate: 1.0 h · Status: Done (evidence: 2026-10-22 local run, not yet committed. `dotnet build` 0 warnings, `dotnet format --verify-no-changes` clean; unit tests 127 passed, integration tests 82 passed, 0 failed. Files: `RequestQueryService.GetHistoryAsync`, `RequestsController.GetHistory`, `StatusHistoryEntryDto.cs`, `RequestHistoryApiTests.cs` (IT-8), `RequestHistoryQueryTests.cs`. Link the commit once it exists.)
+- Estimate: 1.0 h · Status: Done (evidence: 2026-10-22 local run, committed as `5b8be69`. `dotnet build` 0 warnings, `dotnet format --verify-no-changes` clean; unit tests 127 passed, integration tests 82 passed, 0 failed. Files: `RequestQueryService.GetHistoryAsync`, `RequestsController.GetHistory`, `StatusHistoryEntryDto.cs`, `RequestHistoryApiTests.cs` (IT-8), `RequestHistoryQueryTests.cs`.)
 - **Description:** Returns the history newest first (`ChangedAt` descending, the newest `Id` first when timestamps are equal). A missing request returns 404 ProblemDetails; a request without changes returns 200 and `[]`.
 - **Deliverable:** `GET /api/requests/{id}/history`.
 - **Requirements:** R3.2.
@@ -615,7 +615,7 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** IT-8.
 
 **T-207: Bulk status update (Partial Success).**
-- Estimate: 3.0 h · Status: Planned
+- Estimate: 3.0 h · Status: Done (evidence: 2026-10-22 local run, committed as `95d8698`. `dotnet build` 0 warnings, `dotnet format --verify-no-changes` clean; unit tests 151 passed, integration tests 116 passed (Testcontainers, SQL Server 2022), 0 failed. Files: `RequestStatusService.BulkUpdateStatusAsync` (reuses the private `ApplyAsync` of T-205), `RequestsController.BulkUpdateStatus`, `BulkStatusUpdateRequest.cs`, `BulkStatusUpdateResultDto.cs`, `RequestBulkStatusApiTests.cs` (IT-6), `BulkStatusUpdateRequestTests.cs` (UT-3). Contract: a valid call always returns 200 with `requested`, `succeeded`, `failed` and one result per item in the order sent; `rowVersion` is the new version after `Updated` and the current version after `Conflict`; an invalid envelope returns 400 and changes nothing. Not part of this task: the cache invalidation call is added in T-208; the README documentation of the contract is T-602.)
 - **Description:** The bulk flow in §4.4 (D2, A9), reusing the per-item logic from T-205.
 - **Deliverable:** `POST /api/requests/bulk-status`.
 - **Requirements:** R4.1–R4.3, R10.2.
@@ -624,7 +624,7 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** UT-3, IT-6.
 
 **T-208: Summary cache and invalidation.**
-- Estimate: 2.0 h · Status: Planned
+- Estimate: 2.0 h · Status: Done (evidence: 2026-10-22 local run, committed as `459a1e6`. `dotnet build` 0 warnings, `dotnet format --verify-no-changes` clean; unit tests 164 passed, integration tests 125 passed (Testcontainers, SQL Server 2022), 0 failed. Files: `RequestSummaryCache.cs`, `SummaryCacheOptions.cs`, `RequestQueryService.GetSummaryAsync`, `RequestStatusService` (invalidation after the commit in the single update and, once in a `finally`, in the bulk update), `Program.cs` and `appsettings.json` (`SummaryCache:Enabled`, `SummaryCache:ExpirationSeconds`, validated at startup), `RequestSummaryCacheTests.cs` (UT-4), `RequestSummaryCacheApiTests.cs` (IT-7). The "cache hit issues no SQL" criterion is measured with an EF Core command-counting interceptor (0 commands on a hit, 2 on a miss), not with the Development SQL log, which was not run. The generation guard is covered by a unit test and by a forced interleaving against SQL Server; both fail when the guard is removed, and the IT-7 tests fail when the invalidation calls are removed. Not part of this task: README documentation of the reasoning and the scale-out description (R7.4, R7.5: T-602), and the B2 measurement.)
 - **Description:** `RequestSummaryCache` (§4.5), with its two configuration keys. Invalidation is called from the code paths of T-205 and T-207 after commit.
 - **Deliverable:** A cached summary.
 - **Requirements:** R7.1–R7.3.
@@ -725,15 +725,14 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 - **Verification:** `dotnet test`.
 
 **T-404: Integration tests IT-2 to IT-5.**
-- Estimate: 2.5 h · Status: Done (evidence: 2026-10-22 local run, not yet committed. `RequestStatusApiTests.cs`: all 25 tests pass in the full integration run (75 passed, 0 failed). IT-4 (`TwoParallelUpdatesWithTheSameVersion_*`) passed 20 of 20 consecutive separate `dotnet test` runs on the final code. Link the commit once it exists.)
+- Estimate: 2.5 h · Status: Done (evidence: 2026-10-22 local run, committed as `1596f61`. `RequestStatusApiTests.cs`: all 25 tests pass in the full integration run (75 passed, 0 failed). IT-4 (`TwoParallelUpdatesWithTheSameVersion_*`) passed 20 of 20 consecutive separate `dotnet test` runs on the final code.)
 - **Requirements:** R8.4, R2.1–R2.5, R3.1, R10.6.
 - **Depends on:** T-401, T-205.
 - **Acceptance criteria:** All tests pass. IT-4 passes 20 consecutive runs.
 - **Verification:** `dotnet test`, then a loop of 20 runs.
 
 **T-405: Integration tests IT-6 to IT-8.**
-- Estimate: 2.0 h · Status: Planned
-- Estimate: 2.0 h · Status: In Progress (IT-8 is implemented and passes as `RequestHistoryApiTests`, see T-206; remaining: IT-6 and IT-7, which wait for T-207 and T-208)
+- Estimate: 2.0 h · Status: In Progress (IT-8 is implemented and passes as `RequestHistoryApiTests`, see T-206; IT-6 is implemented and passes as `RequestBulkStatusApiTests`, see T-207; IT-7 is implemented and passes as `RequestSummaryCacheApiTests`, see T-208. All three are implemented and pass; the status is left for review because T-401 has not been re-verified)
 - **Depends on:** T-401, T-206, T-207, T-208.
 - **Acceptance criteria:** All tests pass.
 - **Verification:** `dotnet test`.
@@ -936,7 +935,7 @@ T-001 → T-002 → T-101 → T-102 → T-103 → T-104 → T-201 → T-202 → 
 
 ## 10. Requirement Traceability Matrix
 
-Task-level status is in §7. Requirement rows span several tasks, so none is complete yet; the parts verified on 2026-10-22 through T-205 and T-404 are the API-level behaviour of R2.1 (PATCH and history), R2.2, R2.3, R2.4 and R3.1 (single update), by IT-2 to IT-5, and R3.2 by IT-8. Pending: IT-6, FE-2, T-207 and the rest of each row. Requirements covered by the in-progress tasks (T-001 to T-104) have code but incomplete verification; all others are **Planned**. In the Evidence column:
+Task-level status is in §7. Requirement rows span several tasks, so none is complete yet; the parts verified on 2026-10-22 through T-204, T-205, T-207, T-208 and T-404 are the API-level behaviour of R1.6 (summary), R2.1 (PATCH and history), R2.2, R2.3, R2.4 and R3.1 (single and bulk update), by IT-2 to IT-6, R3.2 by IT-8, the API behaviour of R4.1 to R4.3 by UT-3 and IT-6 (the README documentation of R4.2 and R4.3 is T-602), and R7.1 to R7.3 by UT-4 and IT-7 (R7.4 and R7.5 are documentation, T-602). Pending: FE-2 and the rest of each row. Requirements covered by the in-progress tasks (T-001 to T-104) have code but incomplete verification; all others are **Planned**. In the Evidence column:
 - *Test* means an automated test;
 - *Review* means a reviewer reads the code or document and records the result;
 - *Smoke* means a manual check in T-604.

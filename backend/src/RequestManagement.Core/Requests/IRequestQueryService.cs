@@ -15,6 +15,9 @@ public interface IRequestQueryService
     /// </summary>
     Task<IReadOnlyList<StatusHistoryEntryDto>?> GetHistoryAsync(int id, CancellationToken ct);
 
-    /// <summary>Counts all requests by status and by priority (two server-side GROUP BY queries) plus the total.</summary>
+    /// <summary>
+    /// Counts all requests by status and by priority (two server-side GROUP BY queries) plus the total. The result is
+    /// cached for a short time and dropped after every successful status change (T-208).
+    /// </summary>
     Task<RequestSummaryDto> GetSummaryAsync(CancellationToken ct);
 }

@@ -11,4 +11,13 @@ public interface IRequestStatusService
     /// </summary>
     Task<StatusUpdateResult> UpdateStatusAsync(
         int id, RequestStatus newStatus, byte[] rowVersion, string changedBy, CancellationToken ct);
+
+    /// <summary>
+    /// Partial Success (decision D2): applies the same rules as <see cref="UpdateStatusAsync"/> to every item, each in
+    /// its own transaction, and reports one outcome per item in the order given. One failing item never prevents or
+    /// rolls back another. Unexpected failures (e.g. the database becomes unavailable) are not item outcomes: they
+    /// propagate, and items committed before the failure stay committed.
+    /// </summary>
+    Task<BulkStatusUpdateResultDto> BulkUpdateStatusAsync(
+        RequestStatus newStatus, IReadOnlyList<BulkStatusChange> changes, string changedBy, CancellationToken ct);
 }

@@ -85,12 +85,13 @@ public sealed class RequestSummaryApiTests(SqlServerFixture sqlServer)
     }
 
     [Fact]
-    public async Task Summary_ReflectsAChangeMadeToTheDatabase_BecauseNothingIsCachedYet()
+    public async Task Summary_ReflectsAChangeMadeToTheDatabase_WhenTheCacheIsDisabled()
     {
-        // Own database: this test mutates data. Caching and invalidation are T-208.
+        // Own database: this test mutates data, directly and behind the API's back, so the cache is switched off
+        // (SummaryCache:Enabled=false). With the cache on, see RequestSummaryCacheApiTests.
         var connectionString = sqlServer.CreateIsolatedConnectionString("SummaryChange");
         await SeedKnownDistributionAsync(connectionString);
-        using var factory = new ApiFactory(connectionString);
+        using var factory = new ApiFactory(connectionString, new Dictionary<string, string?> { ["SummaryCache:Enabled"] = "false" });
         using var client = factory.CreateClient();
 
         var before = await client.GetFromJsonAsync<JsonElement>("/api/requests/summary");

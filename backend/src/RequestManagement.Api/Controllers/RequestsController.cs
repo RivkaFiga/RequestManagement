@@ -81,9 +81,8 @@ public sealed class RequestsController(
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     public async Task<ActionResult<RequestDto>> UpdateStatus(int id, UpdateStatusRequest body, CancellationToken ct)
     {
-        if (!HttpContext.TryGetChangedBy(out var changedBy, out var headerError))
+        if (!TryGetChangedBy(out var changedBy))
         {
-            ModelState.AddModelError(ChangedBy.HeaderName, headerError!);
             return ValidationProblem(ModelState);
         }
 
@@ -106,5 +105,40 @@ public sealed class RequestsController(
             default:
                 return Problem(statusCode: StatusCodes.Status422UnprocessableEntity, title: "Status transition not allowed.", detail: result.Error);
         }
+    }
+
+    /// <summary>Changes the status of up to 100 requests in one call (Partial Success).</summary>
+    /// <remarks>
+    /// Every item carries its own <c>rowVersion</c>. Each item is applied independently with the same rules as the
+    /// single update, in its own transaction, so a failing item never blocks or undoes the others. A valid call
+    /// always returns 200 with one result per item, in the order sent: <c>outcome</c> is <c>Updated</c> (with the new
+    /// <c>rowVersion</c>), <c>NotFound</c>, <c>Conflict</c> (with the current <c>rowVersion</c>) or
+    /// <c>InvalidTransition</c>, and <c>error</c> explains a failure. 400 is returned, with nothing changed, when the
+    /// call itself is invalid: no items, more than 100, duplicate ids, or a missing or malformed field.
+    /// The optional <c>X-User-Name</c> header (at most 100 characters, not authenticated) is stored as <c>changedBy</c>.
+    /// </remarks>
+    [HttpPost("bulk-status")]
+    [ProducesResponseType<BulkStatusUpdateResultDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<BulkStatusUpdateResultDto>> BulkUpdateStatus(BulkStatusUpdateRequest body, CancellationToken ct)
+    {
+        if (!TryGetChangedBy(out var changedBy))
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        return await statuses.BulkUpdateStatusAsync(body.Status!.Value, body.Changes, changedBy, ct);
+    }
+
+    /// <summary>Reads <c>ChangedBy</c> from the header; on failure records the problem in <see cref="ControllerBase.ModelState"/>.</summary>
+    private bool TryGetChangedBy(out string changedBy)
+    {
+        if (HttpContext.TryGetChangedBy(out changedBy, out var headerError))
+        {
+            return true;
+        }
+
+        ModelState.AddModelError(ChangedBy.HeaderName, headerError!);
+        return false;
     }
 }
