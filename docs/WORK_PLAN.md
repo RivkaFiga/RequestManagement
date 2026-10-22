@@ -615,7 +615,7 @@ Tasks T-001 to T-104 are **In Progress** (code written, verification items remai
 - **Verification:** IT-8.
 
 **T-207: Bulk status update (Partial Success).**
-- Estimate: 3.0 h · Status: Planned
+- Estimate: 3.0 h · Status: Done (evidence: 2026-10-22 local run, not yet committed. `dotnet build` 0 warnings, `dotnet format --verify-no-changes` clean; unit tests 151 passed, integration tests 116 passed (Testcontainers, SQL Server 2022), 0 failed. Files: `RequestStatusService.BulkUpdateStatusAsync` (reuses the private `ApplyAsync` of T-205), `RequestsController.BulkUpdateStatus`, `BulkStatusUpdateRequest.cs`, `BulkStatusUpdateResultDto.cs`, `RequestBulkStatusApiTests.cs` (IT-6), `BulkStatusUpdateRequestTests.cs` (UT-3). Contract: a valid call always returns 200 with `requested`, `succeeded`, `failed` and one result per item in the order sent; `rowVersion` is the new version after `Updated` and the current version after `Conflict`; an invalid envelope returns 400 and changes nothing. Link the commit once it exists. Not part of this task: the cache invalidation call is added in T-208; the README documentation of the contract is T-602.)
 - **Description:** The bulk flow in §4.4 (D2, A9), reusing the per-item logic from T-205.
 - **Deliverable:** `POST /api/requests/bulk-status`.
 - **Requirements:** R4.1–R4.3, R10.2.
@@ -733,7 +733,7 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 
 **T-405: Integration tests IT-6 to IT-8.**
 - Estimate: 2.0 h · Status: Planned
-- Estimate: 2.0 h · Status: In Progress (IT-8 is implemented and passes as `RequestHistoryApiTests`, see T-206; remaining: IT-6 and IT-7, which wait for T-207 and T-208)
+- Estimate: 2.0 h · Status: In Progress (IT-8 is implemented and passes as `RequestHistoryApiTests`, see T-206; IT-6 is implemented and passes as `RequestBulkStatusApiTests`, see T-207; remaining: IT-7, which waits for T-208)
 - **Depends on:** T-401, T-206, T-207, T-208.
 - **Acceptance criteria:** All tests pass.
 - **Verification:** `dotnet test`.
@@ -936,7 +936,7 @@ T-001 → T-002 → T-101 → T-102 → T-103 → T-104 → T-201 → T-202 → 
 
 ## 10. Requirement Traceability Matrix
 
-Task-level status is in §7. Requirement rows span several tasks, so none is complete yet; the parts verified on 2026-10-22 through T-205 and T-404 are the API-level behaviour of R2.1 (PATCH and history), R2.2, R2.3, R2.4 and R3.1 (single update), by IT-2 to IT-5, and R3.2 by IT-8. Pending: IT-6, FE-2, T-207 and the rest of each row. Requirements covered by the in-progress tasks (T-001 to T-104) have code but incomplete verification; all others are **Planned**. In the Evidence column:
+Task-level status is in §7. Requirement rows span several tasks, so none is complete yet; the parts verified on 2026-10-22 through T-205, T-207 and T-404 are the API-level behaviour of R2.1 (PATCH and history), R2.2, R2.3, R2.4 and R3.1 (single and bulk update), by IT-2 to IT-6, R3.2 by IT-8, and the API behaviour of R4.1 to R4.3 by UT-3 and IT-6 (the README documentation of R4.2 and R4.3 is T-602). Pending: FE-2 and the rest of each row. Requirements covered by the in-progress tasks (T-001 to T-104) have code but incomplete verification; all others are **Planned**. In the Evidence column:
 - *Test* means an automated test;
 - *Review* means a reviewer reads the code or document and records the result;
 - *Smoke* means a manual check in T-604.

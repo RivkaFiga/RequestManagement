@@ -34,6 +34,41 @@ public sealed class RequestStatusService(
             : await ApplyAsync(request, newStatus, rowVersion, changedBy, ct);
     }
 
+    public async Task<BulkStatusUpdateResultDto> BulkUpdateStatusAsync(
+        RequestStatus newStatus, IReadOnlyList<BulkStatusChange> changes, string changedBy, CancellationToken ct)
+    {
+        // One query for all rows; a missing id is simply absent from the result.
+        var ids = changes.Select(c => c.Id).Distinct().ToArray();
+        if (ids.Length != changes.Count)
+        {
+            // Request validation rejects duplicates with 400; a repeated id would otherwise act on a stale entity.
+            throw new ArgumentException("Item ids must be distinct.", nameof(changes));
+        }
+
+        var loaded = await db.Requests.Where(r => ids.Contains(r.Id)).ToDictionaryAsync(r => r.Id, ct);
+
+        // Each item goes through the single-update logic and has its own SaveChanges (its own transaction), so a
+        // conflict or a rejection affects that item only.
+        var results = new List<BulkStatusItemResultDto>(changes.Count);
+        foreach (var change in changes)
+        {
+            var result = loaded.TryGetValue(change.Id, out var request)
+                ? await ApplyAsync(request, newStatus, change.RowVersion, changedBy, ct)
+                : StatusUpdateResult.NotFound(change.Id);
+            results.Add(BulkStatusItemResultDto.From(change.Id, result));
+        }
+
+        var summary = BulkStatusUpdateResultDto.From(results);
+        logger.LogInformation(
+            "Bulk status update to {To} by {ChangedBy}: {Requested} requested, {Succeeded} updated, " +
+            "{NotFound} not found, {Conflicts} conflicts, {Rejected} transitions not allowed.",
+            newStatus, changedBy, summary.Requested, summary.Succeeded,
+            results.Count(r => r.Outcome == StatusUpdateOutcome.NotFound),
+            results.Count(r => r.Outcome == StatusUpdateOutcome.Conflict),
+            results.Count(r => r.Outcome == StatusUpdateOutcome.InvalidTransition));
+        return summary;
+    }
+
     /// <summary>The per-request logic: compare versions, check the transition, save the change with its history row.</summary>
     private async Task<StatusUpdateResult> ApplyAsync(
         Request request, RequestStatus newStatus, byte[] rowVersion, string changedBy, CancellationToken ct)
