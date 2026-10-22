@@ -471,7 +471,7 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Tasks T-001 to T-103 are **In Progress** (code written, verification items remaining); every other task is **Planned**, except T-104, T-204, T-205, T-206, T-207, T-208 and T-404, which are **Done**, and T-405, which is **In Progress**. Code for some other Phase 2 tasks (T-201 to T-203) exists in the repository, but their statuses below have not been re-verified yet. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, verification items remaining); every other task is **Planned**, except T-103, T-104, T-204, T-205, T-206, T-207, T-208 and T-404, which are **Done**, and T-405, which is **In Progress**. Code for some other Phase 2 tasks (T-201 to T-203) exists in the repository, but their statuses below have not been re-verified yet. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
@@ -528,7 +528,7 @@ Tasks T-001 to T-103 are **In Progress** (code written, verification items remai
 - **Verification:** UT-1.
 
 **T-103: EF Core mapping and migrations.**
-- Estimate: 2.0 h · Status: In Progress (code written 2026-10-20; verified locally 2026-10-21: build, 51 unit and 8 integration tests pass, no vulnerable packages; remaining: model-vs-migration tests pass; `dotnet ef database update` in both directions still pending)
+- Estimate: 2.0 h · Status: Done (evidence: 2026-10-22 local run on SQL Server 2022 (Docker) against an isolated database `RequestManagement_MigrationCheck`; the target was confirmed with `dotnet ef dbcontext info` before it was created, and `RequestManagement` and `RequestManagement_SeedCheck` were not modified. Steps, each exit 0: (1) `dotnet ef database update InitialCreate` created the database, history holds only `InitialCreate`; (2) `dotnet ef database update` applied `AddQueryIndexes`; (3) `dotnet ef database update InitialCreate` reverted it, the five `Requests` query indexes were gone and tables, PKs, FK, six CHECK constraints and the history index were intact; (4) `dotnet ef database update` re-applied it. Schema inspection via `sys.*` matched the mapping at every stage: 9 `Requests` columns and 6 `RequestStatusHistory` columns with the expected types (`tinyint`, `datetime2(3)`, `rowversion`, `nvarchar` lengths), FK `NO_ACTION`, and the five indexes with the planned key order, sort direction and `INCLUDE (Priority)`. `dotnet ef migrations has-pending-model-changes`: no changes. `AppDbContextModelTests`: 7 of 7 passed. No code or migrations changed. The test database is kept.)
 - **Description:** `AppDbContext` and the entity configurations: `tinyint` conversions, CHECK constraints, column lengths, `IsRowVersion()`, and the foreign key. Two migrations: `InitialCreate` and `AddQueryIndexes` (D14).
 - **Deliverable:** Both migrations.
 - **Requirements:** R0.2, R0.4, R6.3.
