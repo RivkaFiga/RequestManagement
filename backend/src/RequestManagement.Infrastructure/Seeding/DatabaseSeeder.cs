@@ -32,6 +32,12 @@ public sealed class DatabaseSeeder(AppDbContext db)
     ];
 
     /// <summary>
+    /// Creates the database (when missing) and applies all migrations. Unlike <see cref="ResetDatabaseAsync"/> it never
+    /// drops anything; the caller checks beforehand that the database does not exist.
+    /// </summary>
+    public Task CreateDatabaseAsync(CancellationToken cancellationToken) => db.Database.MigrateAsync(cancellationToken);
+
+    /// <summary>
     /// DESTRUCTIVE: drops the database in the connection string and recreates it from the
     /// migrations. Callers are responsible for restricting this to development databases.
     /// </summary>

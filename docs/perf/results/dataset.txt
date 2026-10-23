@@ -1,0 +1,52 @@
+T-501 - dataset in RequestManagement_Perf (requirement R0.3)
+Written: 2026-10-23T11:39:54 local time, after the independent verification below passed.
+
+1. State
+   The database holds the schema WITH both migrations (InitialCreate and AddQueryIndexes), so the five query indexes are PRESENT.
+   This is the dataset record only. It is NOT the "before" state of section 5.2 (that needs dotnet ef database update InitialCreate, not run yet).
+   Nothing in the database was changed by this step except what is described in section 3.
+
+2. How the data was created (commands actually run)
+   Pre-checks, all passed: HEAD bfc3a18; Seeder Release build SHA-256 1DA3CD6F6F290C7F035C667A7F543996A48A71E2B98129E6F65FEF68B85D2091; RequestManagement_Perf absent; docs\perf\guard-perf-target.ps1 -CheckServer exit 0.
+   Command (password read from .env, not printed):
+     $env:ConnectionStrings__RequestManagement = "Server=localhost,1433;Database=RequestManagement_Perf;User Id=sa;Password=<from .env>;TrustServerCertificate=True"
+     powershell.exe -NoProfile -ExecutionPolicy Bypass -File docs\perf\run-seeder.ps1 -Mode Execute -ConfirmDatabase RequestManagement_Perf -TranscriptPath docs\perf\results\seeder-run.txt
+   Checks P1-P8 of run-seeder.ps1 passed. The Seeder ran as: dotnet RequestManagement.Seeder.dll --create-new --expect-server localhost,1433 --expect-database RequestManagement_Perf --count 100000 --seed 20261020 --batch-size 10000
+   (DOTNET_ENVIRONMENT=Development and an empty temporary APPDATA, for that child process only).
+   Seeder output, copied from the console of that run (seeder-run.txt was NOT created, see below):
+     Target: server 'localhost,1433', database 'RequestManagement_Perf'.
+     --create-new: database 'RequestManagement_Perf' does not exist; creating it and applying all migrations...
+     Seeding 100,000 requests (seed 20261020, batch size 10,000)...
+     Inserted 100,000 rows in 4.3 s.
+     Requests: 100,000   History rows: 0
+     By status:   New=19,831, InProgress=29,844, Waiting=14,982, Completed=35,343
+     By priority: Low=40,005, Medium=45,166, High=14,829
+     Checksum: -1953119262
+   Known defect in that run: after the Seeder had finished, run-seeder.ps1 stopped with a PowerShell error (variable $seed collided with the typed parameter [int]$Seed), so the marker was not written and seeder-run.txt was not created. Exit code of the wrapper: 1. The Seeder itself exited normally.
+   Follow-up with the project owner's approval: the variable was renamed in run-seeder.ps1 ($seedRun), and the marker T501_PERF_DB = 'RequestManagement.T-501' was written by hand with the same statement the script uses:
+     IF NOT EXISTS (SELECT 1 FROM sys.extended_properties WHERE class = 0 AND name = N'T501_PERF_DB') EXEC sp_addextendedproperty @name = N'T501_PERF_DB', @value = N'RequestManagement.T-501'
+   The corrected script's Execute branch has NOT been run (it would stop at the existing database).
+
+3. Independent verification (sqlcmd, not the Seeder), measured now
+   Server:   Microsoft SQL Server 2022 (RTM-CU27-GDR) (KB5126934) - 16.0.4305.5 (X64)
+   Database: RequestManagement_Perf, created 2026-10-23 08:29:13.470 (server time, UTC), marker RequestManagement.T-501
+   sqlcmd form: sqlcmd -S localhost,1433 -U sa -C -b -d RequestManagement_Perf -h -1 -W -Q "<query>"   (password via SQLCMDPASSWORD)
+   Queries and measured values:
+     SELECT COUNT_BIG(*) FROM dbo.Requests                                    -> 100000
+     SELECT COUNT_BIG(*) FROM dbo.RequestStatusHistory                        -> 0
+     SELECT CHECKSUM_AGG(CHECKSUM([Id],[Title],[OrganizationName],[Status],[Priority],[AssignedTo],[CreatedAt],[UpdatedAt])) FROM dbo.Requests
+                                                                              -> -1953119262   (same formula and columns as DatabaseSeeder.GetReportAsync)
+     SELECT [Status], COUNT(*) FROM dbo.Requests GROUP BY [Status]            -> 1=19831, 2=29844, 3=14982, 4=35343   (1=New 2=InProgress 3=Waiting 4=Completed)
+     SELECT [Priority], COUNT(*) FROM dbo.Requests GROUP BY [Priority]        -> 1=40005, 2=45166, 3=14829   (1=Low 2=Medium 3=High)
+     SELECT MIN(Id), MAX(Id) FROM dbo.Requests                                -> 1 .. 100000
+     SELECT MIN(CreatedAt), MAX(CreatedAt) FROM dbo.Requests                  -> 2024-10-01 00:12:49.685 .. 2026-09-30 23:45:30.586
+     SELECT MigrationId FROM dbo.__EFMigrationsHistory ORDER BY MigrationId   -> 20261020183000_InitialCreate, 20261020183100_AddQueryIndexes
+   Index listing query (used for indexes.txt): sys.indexes JOIN sys.tables, key columns from sys.index_columns (is_included_column = 0 ORDER BY key_ordinal), included columns (is_included_column = 1), sizes from sys.dm_db_partition_stats; results in indexes.txt.
+
+4. Comparison with the expected values
+   Expected: rows >= 100,000 (R0.3) and exactly 100,000 (plan); checksum -1953119262 (verified in T-104 for the same seed 20261020 and anchor 2026-10-01); distributions equal to the Seeder report of this run.
+   Rows 100,000: PASS.   Checksum -1953119262: PASS.   Status distribution equals the Seeder report: PASS.   Priority distribution equals the Seeder report: PASS.
+   Limit: T-104 recorded only the checksum, not the distributions. The distributions were compared with the Seeder report of this run; the checksum match with T-104 is the evidence that they equal the earlier ones.
+
+5. Not covered here
+   No benchmark, no baseline, no SQL capture. The Execute branch of the corrected run-seeder.ps1 and exit code 4 of the Seeder (database exists) have not been executed.
