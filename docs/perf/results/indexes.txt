@@ -1,0 +1,90 @@
+T-501 - indexes actually present in RequestManagement_Perf
+Captured: 2026-10-23T11:39:25 local time. HEAD bfc3a18 + uncommitted Seeder guard patch (does not touch the schema).
+State: BOTH migrations applied (InitialCreate and AddQueryIndexes), i.e. the schema WITH the query indexes. This is NOT the "before" listing of section 5.2: the five AddQueryIndexes indexes have not been removed. No index was added, changed or dropped in this step.
+Method: read-only sqlcmd against RequestManagement_Perf over sys.indexes, sys.index_columns, sys.columns, sys.dm_db_partition_stats (query text is in dataset.txt: not repeated here).
+Fields: Type = clustered/nonclustered; Keys = key columns in key order with direction; Included = INCLUDE columns; Rows/Pages = row_count / used_page_count at capture time.
+
+Table:    Requests
+Index:    PK_Requests
+Type:     CLUSTERED (primary key)
+Keys:     Id ASC
+Included: -
+Size:     100000 rows, 2254 pages
+Source:   Migrations/20261020183000_InitialCreate.cs table.PrimaryKey(PK_Requests); RequestConfiguration.cs HasKey(r => r.Id)
+Matches the code/migration specification: yes
+
+Table:    Requests
+Index:    IX_Requests_CreatedAt_Id
+Type:     NONCLUSTERED
+Keys:     CreatedAt DESC, Id DESC
+Included: -
+Size:     100000 rows, 622 pages
+Source:   Migrations/20261020183100_AddQueryIndexes.cs CreateIndex; RequestConfiguration.cs line 38 HasIndex(CreatedAt, Id).IsDescending(true, true)
+Matches the code/migration specification: yes
+
+Table:    Requests
+Index:    IX_Requests_Status_CreatedAt
+Type:     NONCLUSTERED
+Keys:     Status ASC, CreatedAt DESC
+Included: Priority
+Size:     100000 rows, 657 pages
+Source:   Migrations/20261020183100_AddQueryIndexes.cs CreateIndex + Include(Priority); RequestConfiguration.cs line 42 HasIndex(Status, CreatedAt).IsDescending(false, true).IncludeProperties(Priority)
+Matches the code/migration specification: yes
+
+Table:    Requests
+Index:    IX_Requests_AssignedTo_Status_CreatedAt
+Type:     NONCLUSTERED
+Keys:     AssignedTo ASC, Status ASC, CreatedAt DESC
+Included: -
+Size:     100000 rows, 1041 pages
+Source:   Migrations/20261020183100_AddQueryIndexes.cs CreateIndex; RequestConfiguration.cs line 47 IsDescending(false, false, true)
+Matches the code/migration specification: yes
+
+Table:    Requests
+Index:    IX_Requests_OrganizationName_CreatedAt
+Type:     NONCLUSTERED
+Keys:     OrganizationName ASC, CreatedAt DESC
+Included: -
+Size:     100000 rows, 1411 pages
+Source:   Migrations/20261020183100_AddQueryIndexes.cs CreateIndex; RequestConfiguration.cs line 51 IsDescending(false, true)
+Matches the code/migration specification: yes
+
+Table:    Requests
+Index:    IX_Requests_Priority_Status
+Type:     NONCLUSTERED
+Keys:     Priority ASC, Status ASC
+Included: -
+Size:     100000 rows, 344 pages
+Source:   Migrations/20261020183100_AddQueryIndexes.cs CreateIndex; RequestConfiguration.cs line 55 HasIndex(Priority, Status)
+Matches the code/migration specification: yes
+
+Table:    RequestStatusHistory
+Index:    PK_RequestStatusHistory
+Type:     CLUSTERED (primary key)
+Keys:     Id ASC
+Included: -
+Size:     0 rows, 0 pages
+Source:   Migrations/20261020183000_InitialCreate.cs table.PrimaryKey(PK_RequestStatusHistory); RequestStatusHistoryEntryConfiguration.cs HasKey(h => h.Id)
+Matches the code/migration specification: yes
+
+Table:    RequestStatusHistory
+Index:    IX_RequestStatusHistory_RequestId_ChangedAt
+Type:     NONCLUSTERED
+Keys:     RequestId ASC, ChangedAt DESC
+Included: -
+Size:     0 rows, 0 pages
+Source:   Migrations/20261020183000_InitialCreate.cs CreateIndex (also serves as the FK index); RequestStatusHistoryEntryConfiguration.cs line 24 IsDescending(false, true)
+Matches the code/migration specification: yes
+
+Table:    __EFMigrationsHistory
+Index:    PK___EFMigrationsHistory
+Type:     CLUSTERED (primary key)
+Keys:     MigrationId ASC
+Included: -
+Size:     2 rows, 2 pages
+Source:   created by EF Core itself for its history table (not in this repository)
+Matches the code/migration specification: yes
+
+Indexes present that are not in the specification: 0
+Overall: PASS - the nine indexes present equal the migrations and the EF configuration (checked by script).
+Note: CHECK constraints and the foreign key are not indexes and are not listed here. EF did not create a separate index for the foreign key; IX_RequestStatusHistory_RequestId_ChangedAt serves it.

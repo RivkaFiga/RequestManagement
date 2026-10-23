@@ -1,0 +1,39 @@
+T-501 provenance, phase A (preparation and safety checks). No baseline has been created yet.
+Captured: 2026-10-23T07:51:19Z
+
+== Git
+HEAD:               bfc3a1805b91887fb323ac15f052d6f87bd5af81  ("add RequestQueryServiceTests")
+Branch:             feature/request-summary
+Tree (HEAD):        8bb3026bdd3e0f3c57a3494f81936e6e87ba175c
+Tree backend/src:   df8d2e0daa25ed1489c6025dc974535680cb77b7
+Working tree at the start of phase A: CLEAN (git status --porcelain=v1 -uall printed nothing).
+  - The three local changes present earlier in the session (RequestQueryServiceTests.cs, docs/WORK_PLAN.md,
+    ApiFoundationTests.cs) were committed by the project owner in bfc3a18. Their blobs in HEAD are unchanged
+    (WORK_PLAN.md a558da3, RequestQueryServiceTests.cs d754911, ApiFoundationTests.cs 4842cdd), so nothing is
+    attributed to a commit that does not contain it.
+  - git diff --quiet HEAD -- backend/src : exit 0 (production code is identical to HEAD).
+  - Untracked files under backend/src: none.
+Files created by phase A (untracked, NOT committed): docs/perf/guard-perf-target.ps1, docs/perf/test-guard.ps1,
+  docs/perf/DEVIATIONS.md, docs/perf/results/provenance.txt.
+
+== Blobs of the files that shape the SQL (working tree == HEAD for all)
+RequestQueryService.cs                 6d1ed94dac94ec7bbfd44dd865152338a88a7f0f
+RequestRow.cs                          6d2d39fab04377650a64ac04e0baa9087055b771
+AppDbContext.cs                        ff3d4b8be09ef6e394e6ff95e4c4fae45d300c8e
+RequestConfiguration.cs                78817a1558ab7dcbbc82706eb1a49799e4fcbfee
+20261020183100_AddQueryIndexes.cs      f7fbde257fd357be2f70fcf16a32dfc0d87ba7ac
+RequestSummaryCache.cs                 61ec0eea6ad38a70748afc60ca91b546ae27018b
+
+== Infrastructure (read only)
+SQL Server:    Microsoft SQL Server 2022 (RTM-CU27-GDR) (KB5126934) 16.0.4305.5 (X64), Docker container request-management-sql
+Image:         mcr.microsoft.com/mssql/server:2022-latest, image id sha256:cf8f0ab2ebe61feec2eed2629061a07d247f791c2a8ddda74a4ac9f06a291718
+Container:     running/healthy, started 2026-10-22T16:28:38Z, publishes 1433/tcp on 0.0.0.0:1433
+sqlcmd:        15.0.1300.359 NT
+PowerShell:    5.1.26100.9711 (Windows PowerShell; pwsh is not installed)
+dotnet SDK:    10.0.402
+Databases present on the server (names only; none was opened or changed): RequestManagement, RequestManagement_MigrationCheck, RequestManagement_SeedCheck (plus system databases).
+RequestManagement_Perf: does not exist.
+
+== Safety guard (docs/perf/guard-perf-target.ps1)
+Offline negative tests (docs/perf/test-guard.ps1): 18 of 18 cases behaved as expected (16 must-stop, 2 must-pass); no database access.
+Server check (-CheckServer) with the real local connection string: GUARD OK, RequestManagement_Perf absent, creation allowed.

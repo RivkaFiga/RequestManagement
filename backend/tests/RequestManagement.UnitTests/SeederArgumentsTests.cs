@@ -68,4 +68,88 @@ public class SeederArgumentsTests
 
         Assert.Null(SeederArguments.CheckSafety("Development", connection));
     }
+
+    private const string PerfServer = "localhost,1433";
+    private const string PerfDatabase = "RequestManagement_Perf";
+
+    private static SeederArguments ParseCreateNew(params string[] extra)
+    {
+        string[] args = ["--create-new", "--expect-server", PerfServer, "--expect-database", PerfDatabase, .. extra];
+        Assert.True(SeederArguments.TryParse(args, out var parsed, out var error), error);
+        return parsed;
+    }
+
+    [Fact]
+    public void CreateNewWithExpectedTarget_IsParsed()
+    {
+        var parsed = ParseCreateNew("--count", "100000");
+
+        Assert.True(parsed.CreateNew);
+        Assert.False(parsed.Reset);
+        Assert.Equal(PerfServer, parsed.ExpectServer);
+        Assert.Equal(PerfDatabase, parsed.ExpectDatabase);
+    }
+
+    [Theory]
+    [InlineData("--create-new")]
+    [InlineData("--create-new", "--expect-database", "RequestManagement_Perf")]
+    [InlineData("--expect-server", "localhost,1433")]
+    [InlineData("--expect-database", "RequestManagement_Perf")]
+    [InlineData("--expect-database")]
+    [InlineData("--expect-database", "--count")]
+    [InlineData("--create-new", "--reset", "--expect-server", "localhost,1433", "--expect-database", "RequestManagement_Perf")]
+    public void InvalidTargetOptions_AreErrors(params string[] args)
+    {
+        Assert.False(SeederArguments.TryParse(args, out _, out var error));
+        Assert.False(string.IsNullOrWhiteSpace(error));
+    }
+
+    [Theory]
+    [InlineData("Server=localhost,1433;Database=RequestManagement")]
+    [InlineData("Server=localhost,1433;Database=RequestManagement_SeedCheck")]
+    [InlineData("Server=localhost,1433;Database=requestmanagement_perf")]
+    [InlineData("Server=localhost,1434;Database=RequestManagement_Perf")]
+    [InlineData("Server=LOCALHOST,1433;Database=RequestManagement_Perf")]
+    [InlineData("Server=sql.example.com,1433;Database=RequestManagement_Perf")]
+    public void ExpectedTarget_MustMatchExactly(string connectionString)
+    {
+        Assert.NotNull(SeederArguments.CheckExpectedTarget(ParseCreateNew(), new SqlConnectionStringBuilder(connectionString)));
+    }
+
+    [Fact]
+    public void ExpectedTarget_ExactMatch_IsAllowed()
+    {
+        var connection = new SqlConnectionStringBuilder("Server=localhost,1433;Database=RequestManagement_Perf");
+
+        Assert.Null(SeederArguments.CheckExpectedTarget(ParseCreateNew(), connection));
+    }
+
+    [Theory]
+    [InlineData(null, "Server=localhost,1433;Database=RequestManagement_Perf")]
+    [InlineData("", "Server=localhost,1433;Database=RequestManagement_Perf")]
+    [InlineData("  ", "Server=localhost,1433;Database=RequestManagement_Perf")]
+    [InlineData("Server=localhost,1433;Database=RequestManagement_Perf", "Server=localhost,1433;Database=RequestManagement")]
+    public void ExpectedTarget_NeedsTheEnvironmentVariable_ToBeTheConnectionInUse(string? environmentValue, string configuredValue)
+    {
+        Assert.NotNull(SeederArguments.CheckExplicitEnvironmentVariable(ParseCreateNew(), environmentValue, configuredValue));
+    }
+
+    [Fact]
+    public void ExpectedTarget_WithMatchingEnvironmentVariable_IsAllowed()
+    {
+        const string value = "Server=localhost,1433;Database=RequestManagement_Perf";
+
+        Assert.Null(SeederArguments.CheckExplicitEnvironmentVariable(ParseCreateNew(), value, value));
+    }
+
+    [Fact]
+    public void WithoutExpectations_NothingChanges()
+    {
+        Assert.True(SeederArguments.TryParse(["--reset"], out var parsed, out _));
+        var other = new SqlConnectionStringBuilder("Server=elsewhere;Database=Anything");
+
+        Assert.False(parsed.CreateNew);
+        Assert.Null(SeederArguments.CheckExpectedTarget(parsed, other));
+        Assert.Null(SeederArguments.CheckExplicitEnvironmentVariable(parsed, null, "x"));
+    }
 }

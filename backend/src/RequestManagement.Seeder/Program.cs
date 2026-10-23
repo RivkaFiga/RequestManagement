@@ -52,6 +52,17 @@ if (safetyError is not null)
     return 3;
 }
 
+// With --expect-server / --expect-database: the connection string must come from the process environment and
+// name exactly the expected server and database. Checked before any connection is opened.
+var targetError = SeederArguments.CheckExplicitEnvironmentVariable(
+        arguments, Environment.GetEnvironmentVariable("ConnectionStrings__RequestManagement"), connectionString)
+    ?? SeederArguments.CheckExpectedTarget(arguments, target);
+if (targetError is not null)
+{
+    Console.Error.WriteLine(targetError);
+    return 3;
+}
+
 using var cancellation = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) =>
 {
@@ -69,10 +80,32 @@ var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
 try
 {
     await using var db = new AppDbContext(dbOptions);
+
+    // The DbContext that runs every command must itself point at the expected target (no connection is opened here).
+    var contextError = SeederArguments.CheckExpectedTarget(arguments, new SqlConnectionStringBuilder(db.Database.GetConnectionString()));
+    if (contextError is not null)
+    {
+        Console.Error.WriteLine(contextError);
+        return 3;
+    }
+
     var seeder = new DatabaseSeeder(db);
     var options = arguments.Options;
 
-    if (arguments.Reset)
+    if (arguments.CreateNew)
+    {
+        if (await DatabaseExistsAsync(target, cancellation.Token))
+        {
+            Console.Error.WriteLine(
+                $"Refusing to run: database '{target.InitialCatalog}' already exists. --create-new only creates a database " +
+                "that does not exist; it never resets or seeds an existing one.");
+            return 4;
+        }
+
+        Console.WriteLine($"--create-new: database '{target.InitialCatalog}' does not exist; creating it and applying all migrations...");
+        await seeder.CreateDatabaseAsync(cancellation.Token);
+    }
+    else if (arguments.Reset)
     {
         Console.WriteLine($"--reset: dropping database '{target.InitialCatalog}' and re-applying all migrations...");
         await seeder.ResetDatabaseAsync(cancellation.Token);
@@ -105,6 +138,18 @@ catch (SqlException ex)
 {
     Console.Error.WriteLine($"SQL Server error {ex.Number}: {ex.Message}");
     return 1;
+}
+
+/// <summary>Read-only existence check against master of the same server; nothing is created or changed.</summary>
+static async Task<bool> DatabaseExistsAsync(SqlConnectionStringBuilder target, CancellationToken cancellationToken)
+{
+    var master = new SqlConnectionStringBuilder(target.ConnectionString) { InitialCatalog = "master" };
+    await using var connection = new SqlConnection(master.ConnectionString);
+    await connection.OpenAsync(cancellationToken);
+    await using var command = connection.CreateCommand();
+    command.CommandText = "SELECT COUNT(*) FROM sys.databases WHERE name = @name";
+    command.Parameters.AddWithValue("@name", target.InitialCatalog);
+    return (int)(await command.ExecuteScalarAsync(cancellationToken))! != 0;
 }
 
 /// <summary>Reports synchronously so progress lines never interleave with the final summary.</summary>
