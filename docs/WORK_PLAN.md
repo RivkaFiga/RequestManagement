@@ -2,9 +2,9 @@
 
 | Item | Value |
 |---|---|
-| Document status | Draft v2, reviewed against the assignment PDF. **Implementation has started: Phase 0–1 (foundation, data layer, seeder) is in the repository; Phase 2 is partly implemented (the `Api` project and the status-update endpoint exist; only the tasks marked `Done` below were verified). Angular, performance and docs do not exist yet.** |
+| Document status | Draft v2, reviewed against the assignment PDF. **Implementation has started: Phase 0–1 (foundation, data layer, seeder) is in the repository; Phase 2 is partly implemented (the `Api` project with the search, summary, status-update, history and bulk endpoints exists; only the tasks marked `Done` below were verified). Angular, performance and docs do not exist yet.** |
 | Date | 2026-10-20 |
-| Verification (local) | 2026-10-21: `dotnet build .\RequestManagement.sln --no-restore` succeeded. Unit tests 51 passed, 0 failed. Integration tests 8 passed, 0 failed (Docker Testcontainers, SQL Server 2022). `dotnet list .\RequestManagement.sln package --vulnerable --include-transitive`: no vulnerable packages in all five projects. 2026-10-22 (T-205): build 0 warnings, `dotnet format --verify-no-changes` clean, unit tests 124 passed, integration tests 75 passed, 0 failed. 2026-10-22 (T-206): unit tests 127 passed, integration tests 82 passed, 0 failed. T-205, T-206 and T-404 are marked `Done`; every other task keeps the status in its block. |
+| Verification (local) | 2026-10-21: `dotnet build .\RequestManagement.sln --no-restore` succeeded. Unit tests 51 passed, 0 failed. Integration tests 8 passed, 0 failed (Docker Testcontainers, SQL Server 2022). `dotnet list .\RequestManagement.sln package --vulnerable --include-transitive`: no vulnerable packages in all five projects. 2026-10-22 (T-205): build 0 warnings, `dotnet format --verify-no-changes` clean, unit tests 124 passed, integration tests 75 passed, 0 failed. 2026-10-22 (T-206): unit tests 127 passed, integration tests 82 passed, 0 failed. 2026-10-22 (T-201, T-202): build 0 warnings, `dotnet format --verify-no-changes` clean, unit tests 165 passed, integration tests 131 passed, 0 failed. The status of every task is the one in its block in §7. |
 | Source of truth | Assignment PDF: Full Stack developer test, level C (6 pages, Hebrew) |
 | Status convention | `Planned` → `In Progress` → `Done (evidence: <commit / test run / file>)`. A task becomes `Done` only when its evidence exists and is linked. |
 | Estimates | Focused-effort estimates in hours. They are not commitments. |
@@ -471,7 +471,7 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, verification items remaining); every other task is **Planned**, except T-103, T-104, T-204, T-205, T-206, T-207, T-208 and T-404, which are **Done**, and T-405, which is **In Progress**. Code for some other Phase 2 tasks (T-201 to T-203) exists in the repository, but their statuses below have not been re-verified yet. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, verification items remaining), and so is T-405. T-103, T-104, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208 and T-404 are **Done**. Every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
@@ -548,7 +548,7 @@ Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, ve
 ### Phase 2: Backend API (17.0 h)
 
 **T-201: API foundation.**
-- Estimate: 2.0 h · Status: Planned
+- Estimate: 2.0 h · Status: Done (evidence: 2026-10-22 local runs (Debug builds from a separate artifacts path). Code committed in `f28d1ea`; the regression tests in `ApiFoundationTests.cs` are not yet committed. **Run, automated (`ApiFoundationTests`, 6 tests, in-process, no database):** an unhandled exception returns 500 `application/problem+json` with `status`, `title` and `traceId` and without the exception message, type name, "stackTrace" or a source location, and the exception is logged at Error on the server (QC-6, QC-8); a client abort mid-request logs nothing at Warning or above and is handled by ASP.NET Core's exception-handler middleware ("The request was aborted by the client", status 499), **not** by `GlobalExceptionHandler`, whose cancellation branch is therefore unreachable in practice (kept as is, not removed); `/openapi/v1.json` and `/swagger/index.html` return 200 in Development and 404 in Production and Staging (D13); in Development a singleton that depends on the scoped `AppDbContext` stops the app from starting ("Cannot consume scoped service"), while the same registration starts in Production, so the default scope and build validation are active in Development (QC-4). The 500, Swagger and DI-validation tests each failed when the behaviour they check was deliberately broken (error detail added to the response, Swagger enabled in every environment, scope and build validation switched off); the sources were then restored from byte copies. The client-abort test was not checked this way. **Run, manual, earlier the same day:** the API started in Development with no errors, and the same 500 body was observed over HTTP from a Kestrel process. The full integration suite (131 tests) also starts the app in Development without errors. **Covered by existing tests:** enum strings, `TimeProvider` use and the `ChangedBy` helper (`ChangedByTests`, status and bulk API tests). **Review only:** logging configuration (`appsettings*.json`), the DI registrations in `Program.cs`. Lifetimes match §4.1 except that §4.1 lists an `IMemoryCache` singleton, which the code does not register or use (T-208 uses the custom `RequestSummaryCache` singleton); §4.1 was not changed. **Not done:** Swagger UI "try it out" calls were not made (only the page and the OpenAPI JSON were fetched); the project owner accepted `Done` without them.)
 - **Description:**
   - `AddProblemDetails` and an `IExceptionHandler`: 500 without internals; a cancelled client request is not logged as an error.
   - Logging configuration.
@@ -564,7 +564,7 @@ Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, ve
 - **Verification:** Startup check; manual calls through Swagger UI.
 
 **T-202: Request search endpoint.**
-- Estimate: 4.0 h · Status: Planned
+- Estimate: 4.0 h · Status: Done (evidence: 2026-10-22 local run. Endpoint code committed in `f28d1ea`; the count-query test (`RequestQueryServiceTests.CountQuery_IsSelectCountOverTheSameWhereAsThePage`) is not yet committed. That test runs the real `SearchAsync`, captures the command EF executes for the count, and asserts that it starts with `SELECT COUNT(*)`, has no `ORDER BY` or `OFFSET`, and has a `WHERE` identical to the page query's; with the count changed to ignore the filters it fails, and the change was reverted. `RequestQueryServiceTests` 11 passed in three consecutive runs (WHERE, ORDER BY with `Id` tie-breaker, OFFSET/FETCH and COUNT). UT-2 (`RequestSearchQueryValidationTests`) passed. IT-1 (`RequestSearchApiTests`, 39 tests, Testcontainers SQL Server 2022, 2,505 rows, results compared with a LINQ-to-objects oracle) passed, including 400 with an error per field. Full run from a separate artifacts path: build 0 warnings, `dotnet format --verify-no-changes` clean, unit tests 165 passed, integration tests 131 passed (125 plus the 6 T-201 tests), 0 failed. "Nothing is materialised before paging" is shown by the code (the query stays `IQueryable` until the projected `ToListAsync`) and the SQL shape; no test asserts it directly. `ct` forwarding (R1.8) is review-only (QC-5): no async call in the search path lacks `ct`. The SQL files in `docs/perf/sql/` are captured in T-501.)
 - **Description:** The query DTO with validation (§4.2) and a composed `IQueryable`:
   - `AsNoTracking`.
   - Filters (A6, A7) and the escaped `LIKE` search (A5).
@@ -579,7 +579,7 @@ Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, ve
 - **Verification:** `ToQueryString()` capture, UT-2, IT-1.
 
 **T-203: Get request by ID.**
-- Estimate: 0.5 h · Status: Planned
+- Estimate: 0.5 h · Status: Done (evidence: 2026-10-23 local run, Debug build from a separate artifacts path. Endpoint code committed in `f28d1ea`. **Run:** the 5 `RequestSearchApiTests.GetById_*` tests passed (`GetById_ReturnsTheRequest` compares the JSON with the database row; `GetById_UnknownId_Returns404ProblemDetails` for ids `999999`, `0` and `-3` checks 404, `application/problem+json` and body status 404; `GetById_NonNumericId_Returns404` checks the status code only), and 74 related API tests passed (`RequestSearchApiTests`, `RequestSummaryApiTests`, `RequestStatusApiTests`, `RequestHistoryApiTests`), including the `/summary` and `/{id}/history` routes next to `/{id}` and the IT-5 cases for `PATCH`. **Review only:** `RequestQueryService.GetByIdAsync` uses `AsNoTracking`, a `Where`, the `RequestRow` projection and `SingleOrDefaultAsync(ct)`, then maps to `RequestDto`; `RequestsController.GetById` returns `ActionResult<RequestDto>` and does not use the domain namespace (QC-3, R1.9). **Note:** the named verification IT-5 covers the 404/422/400 cases of the status update; the `GET` 200/404 tests are the `GetById_*` tests above. **Not verified:** the `Content-Type` of the 200 response and of the non-numeric-id 404 (status code only); an id larger than `int.MaxValue` (expected 404 from the `{id:int}` route constraint, no test); there is no test of the SQL shape of this query (the plan does not require one).)
 - **Description:** A projection to `RequestDto`. A missing request returns 404.
 - **Deliverable:** `GET /api/requests/{id}`.
 - **Requirements:** R1.9, R2.1.
@@ -935,7 +935,7 @@ T-001 → T-002 → T-101 → T-102 → T-103 → T-104 → T-201 → T-202 → 
 
 ## 10. Requirement Traceability Matrix
 
-Task-level status is in §7. Requirement rows span several tasks, so none is complete yet; the parts verified on 2026-10-22 through T-204, T-205, T-207, T-208 and T-404 are the API-level behaviour of R1.6 (summary), R2.1 (PATCH and history), R2.2, R2.3, R2.4 and R3.1 (single and bulk update), by IT-2 to IT-6, R3.2 by IT-8, the API behaviour of R4.1 to R4.3 by UT-3 and IT-6 (the README documentation of R4.2 and R4.3 is T-602), and R7.1 to R7.3 by UT-4 and IT-7 (R7.4 and R7.5 are documentation, T-602). Pending: FE-2 and the rest of each row. Requirements covered by the in-progress tasks (T-001 to T-104) have code but incomplete verification; all others are **Planned**. In the Evidence column:
+Task-level status is in §7. Requirement rows span several tasks, so none is complete yet; the parts verified on 2026-10-22 through T-201, T-202, T-204, T-205, T-207, T-208 and T-404 are the search API behaviour of R1.2 to R1.5 and R1.7 (UT-2, IT-1), the SQL shape behind R1.1 and R6.5 (the captured-SQL assertions in `RequestQueryServiceTests`; the `docs/perf/sql` files are T-501), the ProblemDetails behaviour of R10.6 (`ApiFoundationTests`, IT-5), the API-level behaviour of R1.6 (summary), R2.1 (PATCH and history), R2.2, R2.3, R2.4 and R3.1 (single and bulk update), by IT-2 to IT-6, R3.2 by IT-8, the API behaviour of R4.1 to R4.3 by UT-3 and IT-6 (the README documentation of R4.2 and R4.3 is T-602), and R7.1 to R7.3 by UT-4 and IT-7 (R7.4 and R7.5 are documentation, T-602). Pending: FE-2 and the rest of each row. Requirements covered by the in-progress tasks (T-001 to T-003, T-101, T-102 and T-405) have code but incomplete verification; the parts that depend only on tasks still **Planned** have not been started. In the Evidence column:
 - *Test* means an automated test;
 - *Review* means a reviewer reads the code or document and records the result;
 - *Smoke* means a manual check in T-604.
@@ -1075,7 +1075,7 @@ Task-level status is in §7. Requirement rows span several tasks, so none is com
 **Coverage:**
 - All 77 catalogue entries in §2 have at least one task and one planned evidence item.
 - R0.6 is the exception: it is context and has no separate evidence.
-- Nothing is `Done` yet. Only the data-layer items (R0.2–R0.5) have code and tests; their remaining verification items are listed per task in §7.
+- This is a plan-time coverage check. No requirement is fully verified yet because each spans several tasks; the verified parts are listed in §10, and the status of every task is in §7.
 
 **Evidence strength:**
 - **Automated tests:** R1.2–R1.7, R2.x, R3.x, R4.1, R5.1–R5.5, R7.1–R7.3, R8.x, R10.6, R10.7.
