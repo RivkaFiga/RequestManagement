@@ -471,7 +471,7 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, verification items remaining), and so is T-405. T-103, T-104, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208, T-301, T-303 and T-404 are **Done**. Every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, verification items remaining), and so is T-405. T-103, T-104, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208, T-301, T-303, T-304 and T-404 are **Done**. Every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
@@ -662,7 +662,7 @@ Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, ve
 - **Verification:** FE-1, FE-3.
 
 **T-304: Request list UI.**
-- Estimate: 3.5 h · Status: Planned
+- Estimate: 3.5 h · Status: Done (evidence: 2026-10-25 local run, not yet committed. T-202 is Done, so the contract was read from `RequestSearchQuery.cs` and `toHttpParams`. New files in `frontend/src/app/requests/`: `requests-list.page.ts`, `.html`, `.scss` and `requests-list.page.spec.ts`; the empty route in `app.routes.ts` now lazy-loads the page. `RequestsListPage` provides `RequestsListFacade` itself and injects no `HttpClient`. It has the search box (debounced by the facade; one character is never sent, because the API answers 400), filters for status, priority, organization (starts with), assigned to (exact) and created from/to (the end date is inclusive, sent as the start of the next day because the API bound is exclusive), and a date-range check. The table has `matSort` on the five whitelisted fields (`title`, `status`, `priority`, `createdAt`, `updatedAt`) with the server default `createdAt` descending, and `mat-paginator` with page sizes 10, 20, 50, 100. It shows loading (progress bar, previous rows kept), empty, and error with title, detail and Retry (`facade.refresh()`). Nothing is sorted or filtered client-side. `ng test --watch=false`: 5 files, 35 tests passed (9 new: rows, loading, empty, error and retry, sort params, next page, filter params from page 1, invalid date range, debounced search without a single character, label helper). `ng build` succeeded; the list page is a 377 kB lazy chunk. Not done here: the page was not opened in a browser and was not run against the real API. Smoke checks S-1 to S-3 belong to T-604.)
 - **Description:** The filters, the table with server-side sorting, the paginator, and the loading/empty/error-with-retry states.
 - **Deliverable:** The list page.
 - **Requirements:** R5.1, R5.4, R5.8.
