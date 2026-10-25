@@ -644,7 +644,7 @@ Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, ve
 - **Verification:** Manual check.
 
 **T-302: Typed models and API service.**
-- Estimate: 1.0 h · Status: Planned
+- Estimate: 1.0 h · Status: Done (evidence: 2026-10-25 local run, not yet committed. New files in `frontend/src/app/requests/`: `request.models.ts` (string-literal unions for status, priority, sort field and outcome; interfaces for `RequestDto`, `PagedResult`, history entry, summary, update and bulk bodies, bulk result, search params and 409 conflict details), `requests-api.service.ts` (`RequestsApiService` with `search`, `getSummary`, `getById`, `getHistory`, `updateStatus`, `bulkUpdateStatus`, plus the helpers `toHttpParams` and `readConflictDetails`) and `requests-api.service.spec.ts`. Field names, routes, string enums, the repeated `status`/`priority` query parameters and the `X-User-Name` header were checked against `RequestsController` and the `Core` DTOs. `ng test --watch=false`: 3 files, 19 tests passed (14 new: one per endpoint with method, URL, body and headers, the 409 mapped to `ApiError` and to typed details, and the query mapping); `ng build` succeeded under `strict`. A search of `src/app/requests` found no `any`, and `HttpClient` is injected only in `RequestsApiService` (plus `provideHttpClient` in `app.config.ts`). The tests use `HttpTestingController` with canned responses, not the running API, so the contract is matched by reading the backend code, not by a live call. QC-1 is a review of the files above.)
 - **Description:** TypeScript interfaces matching §4.2, and `RequestsApiService` covering all 6 endpoints.
 - **Deliverable:** The models and the service.
 - **Requirements:** R5.8, R1.9.
