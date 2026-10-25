@@ -471,7 +471,7 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, verification items remaining), and so is T-405. T-103, T-104, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208, T-301 and T-404 are **Done**. Every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, verification items remaining), and so is T-405. T-103, T-104, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208, T-301, T-303 and T-404 are **Done**. Every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
@@ -653,7 +653,7 @@ Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, ve
 - **Verification:** A strict TypeScript build and QC-1.
 
 **T-303: List facade (debounce, switchMap, UI states).**
-- Estimate: 2.5 h · Status: Planned
+- Estimate: 2.5 h · Status: Done (evidence: 2026-10-25 local run, not yet committed. New files in `frontend/src/app/requests/`: `requests-list.facade.ts` (`RequestsListFacade`, provided by the page, not in root) and `requests-list.facade.spec.ts`. The search text goes through `debounceTime(300)` and `distinctUntilChanged`; filter, sort and page changes apply immediately, and a filter or page-size change resets to page 1. Every query goes through `switchMap(api.search)`, and the facade exposes the signals `state` (`loading` / `loaded` / `error`, `data`, `error`), `loading`, `error`, `data`, `items`, `empty` and `query`, plus `setSearch`, `setFilters`, `setSort`, `setPage` and `refresh` (the retry action). A newer query keeps the last page visible while loading, and an error clears it. `ng test --watch=false`: 4 files, 26 tests passed (7 new, using `HttpTestingController` and fake timers: one request per typing pause, `req.cancelled` on a superseded request, a filter change sends the new params with page 1, sort and page params, loading → loaded, loading → empty, loading → error and retry). `ng build` succeeded under `strict`. The new files contain no `any`, and `HttpClient` is not injected outside `RequestsApiService`. The summary is not part of this facade, because the plan assigns it to T-305. The facade is not yet used by any component, so it was not exercised in a browser or against the real API.)
 - **Description:** `RequestsListFacade` as described in §4.7.
 - **Deliverable:** The facade.
 - **Requirements:** R5.1–R5.4.
