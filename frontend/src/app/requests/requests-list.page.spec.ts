@@ -53,6 +53,7 @@ describe('RequestsListPage', () => {
     fixture = TestBed.createComponent(RequestsListPage);
     element = fixture.nativeElement as HTMLElement;
     await settle();
+    http.expectOne('/api/requests/summary').flush({ total: 0, byStatus: [], byPriority: [], generatedAt: '2026-10-25T08:00:00Z' });
   });
 
   afterEach(() => {
@@ -149,6 +150,8 @@ describe('RequestsListPage', () => {
     expect(params.get('assignedTo')).toBe('dana');
     expect(new Date(params.get('createdFrom') as string).getTime()).toBe(new Date('2026-10-01T00:00:00').getTime());
     expect(new Date(params.get('createdTo') as string).getTime()).toBe(new Date('2026-10-06T00:00:00').getTime());
+    // The summary is global (A4): applying filters does not reload it.
+    expect(http.match((r) => r.url === '/api/requests/summary')).toHaveLength(0);
   });
 
   it('does not apply a date range whose end is before its start', async () => {

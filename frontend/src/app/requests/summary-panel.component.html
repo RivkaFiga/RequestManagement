@@ -1,0 +1,37 @@
+<section class="summary" aria-label="Requests summary" [attr.aria-busy]="state().status === 'loading'">
+  @if (state().status === 'loading') {
+    <mat-progress-bar mode="indeterminate" aria-label="Loading summary" />
+  }
+
+  @if (state().error; as error) {
+    <div class="summary-error" role="alert">
+      <span><strong>{{ error.title }}</strong> The summary could not be loaded.</span>
+      <button mat-button type="button" (click)="refresh()">Retry</button>
+    </div>
+  } @else if (state().summary; as summary) {
+    <div class="summary-groups">
+      <div class="summary-total">
+        <span class="summary-value" data-testid="total">{{ summary.total }}</span>
+        <span class="summary-label">Total</span>
+      </div>
+
+      <dl class="summary-group" aria-label="By status">
+        @for (item of summary.byStatus; track item.status) {
+          <div class="summary-item" data-group="status">
+            <dt>{{ toLabel(item.status) }}</dt>
+            <dd>{{ item.count }}</dd>
+          </div>
+        }
+      </dl>
+
+      <dl class="summary-group" aria-label="By priority">
+        @for (item of summary.byPriority; track item.priority) {
+          <div class="summary-item" data-group="priority">
+            <dt>{{ toLabel(item.priority) }}</dt>
+            <dd>{{ item.count }}</dd>
+          </div>
+        }
+      </dl>
+    </div>
+  }
+</section>

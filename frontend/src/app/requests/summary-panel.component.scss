@@ -1,0 +1,48 @@
+.summary {
+  margin-bottom: 16px;
+}
+
+.summary-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  align-items: center;
+}
+
+.summary-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.summary-value {
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.summary-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.summary-item {
+  display: flex;
+  gap: 6px;
+
+  dt::after {
+    content: ':';
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 500;
+  }
+}
+
+.summary-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
