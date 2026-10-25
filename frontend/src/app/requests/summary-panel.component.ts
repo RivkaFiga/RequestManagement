@@ -5,6 +5,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Observable, Subject, catchError, map, of, switchMap } from 'rxjs';
 import { ApiError } from '../core/api-error';
 import { RequestSummary } from './request.models';
+import { toLabel } from './request-labels';
 import { RequestsApiService } from './requests-api.service';
 
 interface SummaryState {
@@ -14,16 +15,10 @@ interface SummaryState {
   readonly error: ApiError | null;
 }
 
-/** `InProgress` → `In progress`. */
-function toLabel(value: string): string {
-  const spaced = value.replace(/([a-z])([A-Z])/g, '$1 $2');
-  return spaced.charAt(0) + spaced.slice(1).toLowerCase();
-}
-
 /**
  * Shows the counts of `GET /api/requests/summary` (plan §4.7). The numbers are global and ignore the list filters
  * (assumption A4), so filter changes do not reload the panel. Nothing is recomputed here: the API lists every
- * status and priority, in enum order. Call `refresh()` after a successful status update (T-306).
+ * status and priority, in enum order. The page calls `refresh()` after a successful status update (T-306).
  */
 @Component({
   selector: 'app-summary-panel',

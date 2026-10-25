@@ -115,7 +115,19 @@ export function readConflictDetails(error: ApiError): ConflictDetails | null {
   return null;
 }
 
+/** Same limit as `ChangedBy.MaxLength` in the backend. */
+const CHANGED_BY_MAX_LENGTH = 100;
+
+/** Printable ASCII only: browsers reject other characters in a header value, and the API cannot read them back. */
+const HEADER_SAFE = /^[\x20-\x7E]+$/;
+
+/**
+ * `X-User-Name` is optional, and the API stores `anonymous` when it is missing. A name the header cannot carry
+ * (non-ASCII, or over 100 characters, which the API answers with 400) is therefore not sent at all.
+ */
 function toHeaders(options: ChangedByOptions): HttpHeaders {
   const changedBy = options.changedBy?.trim();
-  return changedBy ? new HttpHeaders({ [CHANGED_BY_HEADER]: changedBy }) : new HttpHeaders();
+  return changedBy && changedBy.length <= CHANGED_BY_MAX_LENGTH && HEADER_SAFE.test(changedBy)
+    ? new HttpHeaders({ [CHANGED_BY_HEADER]: changedBy })
+    : new HttpHeaders();
 }

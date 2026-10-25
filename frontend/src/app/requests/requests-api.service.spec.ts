@@ -102,6 +102,25 @@ describe('RequestsApiService', () => {
     expect((result as RequestItem).status).toBe('InProgress');
   });
 
+  it.each([['Dana Levi‏ דנה'], ['דנה'], ['José'], ['a'.repeat(101)], ['line\nbreak'], ['   ']])(
+    'PATCH does not send an X-User-Name the header cannot carry (%j)',
+    (name) => {
+      api.updateStatus(7, { status: 'Waiting', rowVersion: item.rowVersion }, { changedBy: name }).subscribe();
+
+      const req = controller.expectOne('/api/requests/7/status');
+      expect(req.request.headers.has('X-User-Name')).toBe(false);
+      req.flush(item);
+    },
+  );
+
+  it('PATCH sends a 100-character ASCII X-User-Name', () => {
+    api.updateStatus(7, { status: 'Waiting', rowVersion: item.rowVersion }, { changedBy: 'a'.repeat(100) }).subscribe();
+
+    const req = controller.expectOne('/api/requests/7/status');
+    expect(req.request.headers.get('X-User-Name')).toBe('a'.repeat(100));
+    req.flush(item);
+  });
+
   it('PATCH omits X-User-Name when no name is given', () => {
     api.updateStatus(7, { status: 'Waiting', rowVersion: item.rowVersion }).subscribe();
 
