@@ -3,6 +3,7 @@ import { Component, DestroyRef, inject, signal, viewChild } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
@@ -21,6 +22,7 @@ import {
   RequestSortField,
   RequestStatus,
 } from './request.models';
+import { RequestHistoryDialogComponent, RequestHistoryDialogData } from './request-history-dialog.component';
 import { toLabel } from './request-labels';
 import { RequestsApiService } from './requests-api.service';
 import { RequestsListFacade, RequestsListFilters } from './requests-list.facade';
@@ -68,6 +70,7 @@ export { toLabel };
     DatePipe,
     ReactiveFormsModule,
     MatButtonModule,
+    MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
     MatPaginatorModule,
@@ -85,6 +88,7 @@ export { toLabel };
 export class RequestsListPage {
   protected readonly facade = inject(RequestsListFacade);
   private readonly api = inject(RequestsApiService);
+  private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
   private readonly fb = inject(FormBuilder).nonNullable;
   private readonly summaryPanel = viewChild(SummaryPanelComponent);
@@ -112,6 +116,7 @@ export class RequestsListPage {
     'createdAt',
     'updatedAt',
     'change',
+    'history',
   ] as const;
 
   protected readonly searchControl = this.fb.control('', [searchLength]);
@@ -166,6 +171,11 @@ export class RequestsListPage {
 
   protected onPage(event: PageEvent): void {
     this.facade.setPage(event.pageIndex + 1, event.pageSize);
+  }
+
+  protected openHistory(request: RequestItem): void {
+    const data: RequestHistoryDialogData = { requestId: request.id, title: request.title };
+    this.dialog.open(RequestHistoryDialogComponent, { data, width: '640px', maxWidth: '95vw' });
   }
 
   protected isStale(row: RequestItem): boolean {

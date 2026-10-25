@@ -1,0 +1,50 @@
+<h2 mat-dialog-title>Status history</h2>
+
+<mat-dialog-content [attr.aria-busy]="state().status === 'loading'">
+  <p class="request-title">#{{ data.requestId }} · {{ data.title }}</p>
+
+  @switch (state().status) {
+    @case ('loading') {
+      <mat-progress-bar mode="indeterminate" aria-label="Loading history" />
+    }
+    @case ('error') {
+      @if (state().error; as error) {
+        <div class="message" role="alert" data-testid="history-error">
+          <p><strong>{{ error.title }}</strong></p>
+          @if (error.detail) {
+            <p>{{ error.detail }}</p>
+          }
+          <button mat-flat-button type="button" (click)="reload()">Retry</button>
+        </div>
+      }
+    }
+    @case ('loaded') {
+      @if (state().entries.length === 0) {
+        <p class="message" role="status" data-testid="history-empty">This request has no status changes yet.</p>
+      } @else {
+        <table class="history" aria-label="Status history">
+          <thead>
+            <tr>
+              <th scope="col">When</th>
+              <th scope="col">Change</th>
+              <th scope="col">Changed by</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of state().entries; track entry.id) {
+              <tr data-testid="history-row">
+                <td>{{ entry.changedAt | date: 'medium' }}</td>
+                <td>{{ toLabel(entry.previousStatus) }} → {{ toLabel(entry.newStatus) }}</td>
+                <td>{{ entry.changedBy }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    }
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close>Close</button>
+</mat-dialog-actions>

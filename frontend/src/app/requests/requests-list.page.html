@@ -145,6 +145,21 @@
         </td>
       </ng-container>
 
+      <ng-container matColumnDef="history">
+        <th mat-header-cell *matHeaderCellDef>History</th>
+        <td mat-cell *matCellDef="let row">
+          <button
+            mat-button
+            type="button"
+            data-testid="history-button"
+            [attr.aria-label]="'Status history of request ' + row.id"
+            (click)="openHistory(row)"
+          >
+            History
+          </button>
+        </td>
+      </ng-container>
+
       <tr mat-header-row *matHeaderRowDef="columns"></tr>
       <tr mat-row *matRowDef="let row; columns: columns"></tr>
     </table>

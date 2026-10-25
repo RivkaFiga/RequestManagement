@@ -76,6 +76,20 @@ describe('RequestsListPage', () => {
     expect(element.querySelector('.mat-mdc-paginator-range-label')?.textContent).toContain('of 41');
   });
 
+  it('opens the history dialog of a row and loads its history', async () => {
+    lastRequest().flush(page([item]));
+    await settle();
+
+    await click('[data-testid="history-button"]');
+    http.expectOne('/api/requests/1/history').flush([]);
+    await settle();
+
+    const dialog = document.querySelector('app-request-history-dialog');
+    expect(dialog?.textContent).toContain('#1 · Renew permit');
+    expect(dialog?.querySelector('[data-testid="history-empty"]')).toBeTruthy();
+
+  });
+
   it('shows the empty state', async () => {
     lastRequest().flush(page([]));
     await settle();
