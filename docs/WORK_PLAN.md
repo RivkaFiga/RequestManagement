@@ -2,7 +2,7 @@
 
 | Item | Value |
 |---|---|
-| Document status | Draft v2, reviewed against the assignment PDF. **Implementation has started: Phase 0–1 (foundation, data layer, seeder) is in the repository; Phase 2 is partly implemented (the `Api` project with the search, summary, status-update, history and bulk endpoints exists; only the tasks marked `Done` below were verified). Angular, performance and docs do not exist yet.** |
+| Document status | Draft v2, reviewed against the assignment PDF. **Implementation has started: Phase 0–1 (foundation, data layer, seeder) is in the repository; Phase 2 is partly implemented (the `Api` project with the search, summary, status-update, history and bulk endpoints exists; only the tasks marked `Done` below were verified). The Angular scaffold (T-301) exists; the rest of Angular, performance and docs do not exist yet.** |
 | Date | 2026-10-20 |
 | Verification (local) | 2026-10-21: `dotnet build .\RequestManagement.sln --no-restore` succeeded. Unit tests 51 passed, 0 failed. Integration tests 8 passed, 0 failed (Docker Testcontainers, SQL Server 2022). `dotnet list .\RequestManagement.sln package --vulnerable --include-transitive`: no vulnerable packages in all five projects. 2026-10-22 (T-205): build 0 warnings, `dotnet format --verify-no-changes` clean, unit tests 124 passed, integration tests 75 passed, 0 failed. 2026-10-22 (T-206): unit tests 127 passed, integration tests 82 passed, 0 failed. 2026-10-22 (T-201, T-202): build 0 warnings, `dotnet format --verify-no-changes` clean, unit tests 165 passed, integration tests 131 passed, 0 failed. The status of every task is the one in its block in §7. |
 | Source of truth | Assignment PDF: Full Stack developer test, level C (6 pages, Hebrew) |
@@ -471,7 +471,7 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, verification items remaining), and so is T-405. T-103, T-104, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208 and T-404 are **Done**. Every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, verification items remaining), and so is T-405. T-103, T-104, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208, T-301 and T-404 are **Done**. Every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
@@ -635,7 +635,7 @@ Tasks T-001, T-002, T-003, T-101 and T-102 are **In Progress** (code written, ve
 ### Phase 3: Angular (13.5 h)
 
 **T-301: Angular scaffold and error handling.**
-- Estimate: 1.5 h · Status: Planned
+- Estimate: 1.5 h · Status: Done (evidence: 2026-10-25 local run, not yet committed. Angular 21.2 and Angular Material 21.2 on Node 22.22.0; Angular 22 was not used because it requires Node 22.22.3 or later. `npm run build` succeeded and `ng test` passed (5 tests: app shell, `httpErrorInterceptor`), both run directly in the non-ASCII repository path, so no ASCII work path was needed. `ng serve` returned the shell with HTTP 200, and `/api/requests?page=1&status=New` on port 4200 reached a stub on `localhost:5080` with its path, query string and 409 ProblemDetails body intact. The real backend was not running, so the proxy was not exercised against the API, and the shell was not viewed in a browser. Files: `frontend/` (`proxy.conf.json`, `angular.json` serve option, `app.config.ts`, `app.ts`, `app.html`, `core/api-error.ts`, `core/http-error.interceptor.ts` and its spec). `npm audit` reports 2 vulnerabilities (`undici`, via `@angular/build`, dev tooling only), and the only fix offered is a downgrade to Angular 20.)
 - **Description:** A standalone app with routing, Angular Material (D9), the `/api` dev proxy, `httpErrorInterceptor` and `ApiError`.
 - **Deliverable:** A running `frontend/` app.
 - **Requirements:** R5.8.
