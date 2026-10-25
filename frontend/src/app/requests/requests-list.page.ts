@@ -19,6 +19,7 @@ import {
   RequestStatus,
 } from './request.models';
 import { RequestsListFacade, RequestsListFilters } from './requests-list.facade';
+import { SummaryPanelComponent } from './summary-panel.component';
 
 /** Limits of the API (`RequestSearchQuery`): the search needs 2 to 100 characters. */
 const SEARCH_MIN_LENGTH = 2;
@@ -66,6 +67,7 @@ export function toLabel(value: string): string {
     MatSelectModule,
     MatSortModule,
     MatTableModule,
+    SummaryPanelComponent,
   ],
   providers: [RequestsListFacade],
   templateUrl: './requests-list.page.html',
