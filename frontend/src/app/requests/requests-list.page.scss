@@ -1,0 +1,24 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  align-items: flex-start;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+}
+
+.message {
+  padding: 24px 0;
+}
