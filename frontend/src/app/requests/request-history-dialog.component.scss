@@ -1,0 +1,28 @@
+.request-title {
+  margin: 0 0 12px;
+  font-weight: 500;
+}
+
+.message {
+  padding: 8px 0;
+}
+
+.history {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 6px 12px 6px 0;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    font-weight: 500;
+  }
+
+  tbody tr {
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+  }
+}
