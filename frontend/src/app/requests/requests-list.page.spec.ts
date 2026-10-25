@@ -1,6 +1,8 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { httpErrorInterceptor } from '../core/http-error.interceptor';
 import { PagedResult, RequestItem } from './request.models';
@@ -190,6 +192,198 @@ describe('RequestsListPage', () => {
     expect(request.request.params.get('search')).toBe('pe');
     expect(request.request.params.get('page')).toBe('1');
     request.flush(page([item]));
+  });
+});
+
+describe('RequestsListPage status change', () => {
+  const STATUS_URL = '/api/requests/1/status';
+  const updated: RequestItem = {
+    ...item,
+    status: 'Waiting',
+    rowVersion: 'AAAAAAAAB9F=',
+    allowedNextStatuses: ['InProgress', 'Completed'],
+  };
+
+  let fixture: ComponentFixture<RequestsListPage>;
+  let http: HttpTestingController;
+  let element: HTMLElement;
+
+  const settle = async (): Promise<void> => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  };
+  const flushList = async (items: readonly RequestItem[]): Promise<void> => {
+    const pending = http.match((r) => r.url === '/api/requests');
+    expect(pending).toHaveLength(1);
+    pending[0].flush(page(items));
+    await settle();
+  };
+  const flushSummary = async (): Promise<void> => {
+    http
+      .expectOne('/api/requests/summary')
+      .flush({ total: 1, byStatus: [], byPriority: [], generatedAt: '2026-10-25T08:00:00Z' });
+    await settle();
+  };
+  const updateButton = (): HTMLButtonElement => element.querySelector('app-status-change button') as HTMLButtonElement;
+  /** Picks a status in the row's select and presses Update. */
+  const changeTo = async (label: string): Promise<void> => {
+    const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatSelectHarness.with({ ancestor: 'app-status-change' }));
+    await select.clickOptions({ text: label });
+    updateButton().click();
+    await settle();
+  };
+  const notice = (): HTMLElement | null => element.querySelector('[data-testid="status-notice"]');
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      imports: [RequestsListPage],
+      providers: [provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(RequestsListPage);
+    element = fixture.nativeElement as HTMLElement;
+    await settle();
+    await flushSummary();
+    await flushList([item]);
+  });
+
+  afterEach(() => http.verify());
+
+  it('limits the choice to the allowed next statuses and needs a choice before Update', async () => {
+    expect(updateButton().disabled).toBe(true);
+
+    const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatSelectHarness.with({ ancestor: 'app-status-change' }));
+    await select.open();
+    const options = await select.getOptions();
+    expect(await Promise.all(options.map((o) => o.getText()))).toEqual(['Waiting']);
+  });
+
+  it('sends status and rowVersion, shows saving, then the success and the reloaded list and summary', async () => {
+    await changeTo('Waiting');
+
+    const patch = http.expectOne(STATUS_URL);
+    expect(patch.request.method).toBe('PATCH');
+    expect(patch.request.body).toEqual({ status: 'Waiting', rowVersion: item.rowVersion });
+    expect(patch.request.headers.has('X-User-Name')).toBe(false);
+    expect(element.querySelector('app-status-change [role="status"]')?.textContent).toContain('Saving');
+    expect(updateButton().disabled).toBe(true);
+
+    patch.flush(updated);
+    await settle();
+    expect(notice()?.textContent).toContain('"Renew permit" is now Waiting.');
+    expect(element.querySelector('app-status-change [role="status"]')).toBeNull();
+
+    await flushSummary();
+    await flushList([updated]);
+    expect(element.querySelector('tbody tr:first-child td:nth-child(3)')?.textContent?.trim()).toBe('Waiting');
+    expect(notice()?.textContent).toContain('is now Waiting');
+  });
+
+  it('does not send a second update while one is being saved', async () => {
+    await changeTo('Waiting');
+    const patch = http.expectOne(STATUS_URL);
+
+    updateButton().click();
+    await settle();
+    expect(http.match(STATUS_URL)).toHaveLength(0);
+
+    patch.flush(updated);
+    await settle();
+    await flushSummary();
+    await flushList([updated]);
+  });
+
+  it('explains a 409, locks the row until the data is reloaded and does not retry', async () => {
+    await changeTo('Waiting');
+    http.expectOne(STATUS_URL).flush(
+      {
+        title: 'Concurrency conflict.',
+        detail: 'The request was changed by someone else. Reload it and try again.',
+        currentStatus: 'Completed',
+        currentRowVersion: 'AAAAAAAAB9G=',
+      },
+      { status: 409, statusText: 'Conflict' },
+    );
+    await settle();
+
+    const message = notice();
+    expect(message?.getAttribute('role')).toBe('alert');
+    expect(message?.textContent).toContain('was changed by someone else');
+    expect(message?.textContent).toContain('It is now Completed.');
+    expect(message?.textContent).toContain('Reload the data');
+    // No automatic retry, and nothing reloaded behind the user's back.
+    http.expectNone(STATUS_URL);
+    http.expectNone('/api/requests');
+    http.expectNone('/api/requests/summary');
+    expect(updateButton().disabled).toBe(true);
+    expect(element.querySelector('app-status-change')?.textContent).toContain('Reload the data to change');
+
+    const fresh: RequestItem = { ...item, status: 'Completed', rowVersion: 'AAAAAAAAB9G=', allowedNextStatuses: [] };
+    (Array.from(notice()?.querySelectorAll('button') ?? []).find((b) => b.textContent?.includes('Reload data')) as HTMLElement).click();
+    await settle();
+    await flushSummary();
+    await flushList([fresh]);
+
+    expect(notice()).toBeNull();
+    expect(element.querySelector('tbody tr:first-child td:nth-child(3)')?.textContent?.trim()).toBe('Completed');
+    expect(element.querySelector('app-status-change')?.textContent).toContain('No further changes');
+  });
+
+  it('keeps the row editable after a 409 once the reload brings a new rowVersion', async () => {
+    await changeTo('Waiting');
+    http.expectOne(STATUS_URL).flush({ title: 'Concurrency conflict.' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    (Array.from(notice()?.querySelectorAll('button') ?? []).find((b) => b.textContent?.includes('Reload data')) as HTMLElement).click();
+    await settle();
+    await flushSummary();
+    await flushList([{ ...item, rowVersion: 'AAAAAAAAB9G=' }]);
+
+    await changeTo('Waiting');
+    expect(http.expectOne(STATUS_URL).request.body).toEqual({ status: 'Waiting', rowVersion: 'AAAAAAAAB9G=' });
+  });
+
+  it.each([
+    [422, { title: 'Status transition not allowed.', detail: 'Cannot move from New to Completed.' }, 'cannot be changed to that status', 'Cannot move from New to Completed.', true],
+    [404, { title: 'Request not found.', detail: 'No request with id 1 exists.' }, 'no longer exists', 'Reload the data', true],
+    [
+      400,
+      { title: 'One or more validation errors occurred.', errors: { 'X-User-Name': ['The X-User-Name header must be at most 100 characters.'] } },
+      'was rejected',
+      'at most 100 characters',
+      false,
+    ],
+    [500, { title: 'An unexpected error occurred.' }, 'was not changed', 'You can try again', false],
+  ])('shows the %i error without reloading anything', async (status, body, message, detail, canReload) => {
+    await changeTo('Waiting');
+    http.expectOne(STATUS_URL).flush(body, { status, statusText: 'Error' });
+    await settle();
+
+    const shown = notice();
+    expect(shown?.getAttribute('role')).toBe('alert');
+    expect(shown?.textContent).toContain(message);
+    expect(shown?.textContent).toContain(detail);
+    const labels = Array.from(shown?.querySelectorAll('button') ?? []).map((b) => b.textContent?.trim());
+    expect(labels.includes('Reload data')).toBe(canReload);
+    http.expectNone('/api/requests');
+    http.expectNone('/api/requests/summary');
+    // The row is usable again (except after a 404, whose data is gone), so the user can choose again.
+    expect(element.querySelector('app-status-change [role="status"]')).toBeNull();
+  });
+
+  it('shows a network failure and lets the user try again', async () => {
+    await changeTo('Waiting');
+    http.expectOne(STATUS_URL).error(new ProgressEvent('error'));
+    await settle();
+
+    expect(notice()?.textContent).toContain('The server could not be reached.');
+    updateButton().click();
+    await settle();
+    http.expectOne(STATUS_URL).flush(updated);
+    await settle();
+    await flushSummary();
+    await flushList([updated]);
   });
 });
 

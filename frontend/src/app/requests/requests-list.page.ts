@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, inject } from '@angular/core';
+import { Component, DestroyRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,15 +10,27 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { finalize } from 'rxjs';
+import { ApiError } from '../core/api-error';
 import {
   REQUEST_PRIORITIES,
   REQUEST_SORT_FIELDS,
   REQUEST_STATUSES,
+  RequestItem,
   RequestPriority,
   RequestSortField,
   RequestStatus,
 } from './request.models';
+import { toLabel } from './request-labels';
+import { RequestsApiService } from './requests-api.service';
 import { RequestsListFacade, RequestsListFilters } from './requests-list.facade';
+import {
+  StatusChangeComponent,
+  StatusNotice,
+  isStaleFailure,
+  statusChangeFailed,
+  statusChangeSucceeded,
+} from './status-change.component';
 import { SummaryPanelComponent } from './summary-panel.component';
 
 /** Limits of the API (`RequestSearchQuery`): the search needs 2 to 100 characters. */
@@ -44,11 +56,7 @@ function dateRange(group: AbstractControl): ValidationErrors | null {
   return createdFrom && createdTo && createdFrom > createdTo ? { dateRange: true } : null;
 }
 
-/** `InProgress` → `In progress`. */
-export function toLabel(value: string): string {
-  const spaced = value.replace(/([a-z])([A-Z])/g, '$1 $2');
-  return spaced.charAt(0) + spaced.slice(1).toLowerCase();
-}
+export { toLabel };
 
 /**
  * The requests list page (plan §4.7). It only renders the facade state and forwards user input to it:
@@ -67,6 +75,7 @@ export function toLabel(value: string): string {
     MatSelectModule,
     MatSortModule,
     MatTableModule,
+    StatusChangeComponent,
     SummaryPanelComponent,
   ],
   providers: [RequestsListFacade],
@@ -75,7 +84,16 @@ export function toLabel(value: string): string {
 })
 export class RequestsListPage {
   protected readonly facade = inject(RequestsListFacade);
+  private readonly api = inject(RequestsApiService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly fb = inject(FormBuilder).nonNullable;
+  private readonly summaryPanel = viewChild(SummaryPanelComponent);
+
+  /** Id of the request being saved. Only one save runs at a time, which also prevents a double submit. */
+  protected readonly savingId = signal<number | null>(null);
+  protected readonly notice = signal<StatusNotice | null>(null);
+  /** `rowVersion` per request id that got a 409 or 404: the row stays locked until the reload brings a new one. */
+  private readonly staleVersions = signal<ReadonlyMap<number, string>>(new Map());
 
   protected readonly statuses = REQUEST_STATUSES;
   protected readonly priorities = REQUEST_PRIORITIES;
@@ -93,6 +111,7 @@ export class RequestsListPage {
     'assignedTo',
     'createdAt',
     'updatedAt',
+    'change',
   ] as const;
 
   protected readonly searchControl = this.fb.control('', [searchLength]);
@@ -147,6 +166,57 @@ export class RequestsListPage {
 
   protected onPage(event: PageEvent): void {
     this.facade.setPage(event.pageIndex + 1, event.pageSize);
+  }
+
+  protected isStale(row: RequestItem): boolean {
+    return this.staleVersions().get(row.id) === row.rowVersion;
+  }
+
+  /**
+   * `PATCH /api/requests/{id}/status` with the `rowVersion` the row was loaded with. After a success the list and
+   * the summary are reloaded. A 409 is never retried: the user reloads the data and decides again (R2.5, R5.5).
+   */
+  protected changeStatus(request: RequestItem, status: RequestStatus): void {
+    if (this.savingId() !== null) {
+      return;
+    }
+    this.savingId.set(request.id);
+    this.notice.set(null);
+
+    this.api
+      .updateStatus(request.id, { status, rowVersion: request.rowVersion })
+      .pipe(
+        finalize(() => this.savingId.set(null)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (updated) => {
+          this.notice.set(statusChangeSucceeded(updated));
+          this.reload();
+        },
+        error: (error: unknown) => {
+          const apiError = error instanceof ApiError ? error : new ApiError(0, 'Unexpected error.');
+          if (isStaleFailure(apiError)) {
+            this.staleVersions.update((stale) => new Map(stale).set(request.id, request.rowVersion));
+          }
+          this.notice.set(statusChangeFailed(request, apiError));
+        },
+      });
+  }
+
+  /** The "Reload data" action of a notice. */
+  protected reloadFromNotice(): void {
+    this.notice.set(null);
+    this.reload();
+  }
+
+  protected dismissNotice(): void {
+    this.notice.set(null);
+  }
+
+  private reload(): void {
+    this.facade.refresh();
+    this.summaryPanel()?.refresh();
   }
 }
 

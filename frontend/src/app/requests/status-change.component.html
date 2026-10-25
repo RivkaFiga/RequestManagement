@@ -1,0 +1,33 @@
+@if (request().allowedNextStatuses.length === 0) {
+  <span class="no-change">No further changes</span>
+} @else {
+  <div class="status-change">
+    <mat-form-field subscriptSizing="dynamic" class="status-field">
+      <mat-label>Change to</mat-label>
+      <mat-select
+        [value]="choice()"
+        [disabled]="locked()"
+        (selectionChange)="choose($event.value)"
+        [attr.aria-label]="'New status for ' + request().title"
+      >
+        @for (status of request().allowedNextStatuses; track status) {
+          <mat-option [value]="status">{{ toLabel(status) }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="choice() === null || locked()"
+      [attr.aria-label]="'Update status of ' + request().title"
+      (click)="update()"
+    >
+      Update
+    </button>
+  </div>
+  @if (saving()) {
+    <span class="hint" role="status">Saving…</span>
+  } @else if (stale()) {
+    <span class="hint">Reload the data to change this request.</span>
+  }
+}
