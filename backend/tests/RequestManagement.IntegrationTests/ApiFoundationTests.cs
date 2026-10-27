@@ -94,6 +94,21 @@ public sealed class ApiFoundationTests
         }
     }
 
+    [Fact]
+    public async Task OpenApi_BulkRequestSchema_ListsOnlyTheJsonContract()
+    {
+        using var factory = new ApiFactory(NoDatabase).WithWebHostBuilder(builder => builder.UseEnvironment("Development"));
+        using var client = factory.CreateClient();
+
+        using var document = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json"));
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+        var request = schemas.GetProperty("BulkStatusUpdateRequest").GetProperty("properties");
+        var item = schemas.GetProperty("BulkStatusUpdateItem").GetProperty("properties");
+
+        Assert.Equal(["items", "status"], request.EnumerateObject().Select(p => p.Name).Order());
+        Assert.Equal(["id", "rowVersion"], item.EnumerateObject().Select(p => p.Name).Order());
+    }
+
     // ---------------------------------------------------------------- DI validation (QC-4)
 
     [Fact]

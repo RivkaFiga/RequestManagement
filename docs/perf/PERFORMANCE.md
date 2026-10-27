@@ -141,6 +141,12 @@ The script accepts the saved plan as the plan of the timed runs only if the plan
 
 **Possible explanation (not proof).** The statements have the same text in both phases, so the plan cache may still hold the `before` plans next to the new ones; if that is so, the extra hash is the old plan from the `before` API run and every `after` execution used the new plan. The counts fit this reading, but the script cannot tell it apart from real plan instability, and this report does not claim either. Part of the matching may also depend on how the script finds a statement in the cache by its text; that was not examined.
 
+**Analysis of the saved `after/fidelity.txt` (2026-10-27, from the files only; no database access, nothing re-measured).** The lookup (`Get-FidelityQuery` in `perf-common.ps1`) takes every plan-cache entry of the current database whose text *contains* the statement (`CHARINDEX`), API executions included, and groups them by `query_plan_hash` with `SUM(execution_count)`, `MIN(creation_time)` and `MAX(last_execution_time)`. The verdict is therefore `PLAN_UNSTABLE` whenever any such entry has another hash, whether or not it ran during the timed runs. The saved timestamps show what the other hashes are:
+
+- For 10 of the 11 `PLAN_UNSTABLE` statements the saved-plan hash has exactly 7 executions (1 warm-up + 5 measured + 1 XML run, which are the `run-sql.ps1 -Phase after` executions; the pair B1b.count/B1d.count has the same text, so 14 = 2 x 7), and every other hash was **last executed before the saved hash was first compiled** (15:02 to 15:04 UTC, the `before` API run, against 15:11 UTC for the `after` SQL runs). Those other hashes are leftovers of the `before` phase (110 executions = 10 warm-up + 100 API calls), still listed in the cache.
+- B1b.count and B1d.count also list `0xCFD6EE123D595684` and `0x4FE1EC1855E1015D` with last-execution times (15:11:24.300 and 15:11:29.663) that are exactly the last-execution times of B1a.count's and B1c.count's own entries. Their text contains the shorter text of these two statements (`SELECT COUNT(*) ... FROM Requests`, with and without a `WHERE`), so the substring match picked up other statements' runs.
+- **Reading.** In all 11 cases the executions of the `after` timed runs are the executions of the saved plan. This is consistent with the logical reads, which were identical in all 5 measured runs (within 1 page for three statements, recorded in section 5). It remains an inference from timestamps, not a repeated measurement: the verdicts in `fidelity.txt` are unchanged, and it says nothing about the API-level timings of section 4, whose plans are not in the cache at the time of the capture (the `after` API run came after it).
+
 **What this does and does not allow.**
 
 - The logical reads, CPU and elapsed medians (section 5) and the API times (section 4) are measured values and are reported as measured.
@@ -167,6 +173,18 @@ Each index is used in at least one saved `after` plan. This is evidence of use, 
 | `IX_Requests_AssignedTo_Status_CreatedAt` | B1e.count, B1e.data | B1e.count 2254 -> 7; B1e.data 2254 -> 1554 |
 | `IX_Requests_OrganizationName_CreatedAt` | B1f.count (not B1f.data) | B1f.count 2254 -> 116 |
 | `IX_Requests_Priority_Status` | B1b.count, B1d.count, B2.priority | B1b.count 2254 -> 153; B2.priority 2254 -> 153 |
+
+**Decision (T-502, WORK_PLAN section 5.4: keep an index if it reduces logical reads or removes a scan or sort for its scenario).** All five stay; none is dropped, so `AddQueryIndexes` is unchanged.
+
+| Index | Decision | Reason from the files |
+|---|---|---|
+| `IX_Requests_CreatedAt_Id` | keep | Removes the scan and sort of B1a.data (2254 -> 1123) and B1f.data (2254 -> 336). Trade-off recorded for B1c.data (reads 2254 -> 8721, CPU 83 -> 1 ms). |
+| `IX_Requests_Status_CreatedAt` | keep | B1a.count 2254 -> 12 (seek); B2.status 2254 -> 239. |
+| `IX_Requests_AssignedTo_Status_CreatedAt` | keep | B1e.count 2254 -> 7 (seek); B1e.data 2254 -> 1554. |
+| `IX_Requests_OrganizationName_CreatedAt` | keep | B1f.count 2254 -> 116 (seek). Not used by B1f.data. |
+| `IX_Requests_Priority_Status` | keep | B1b.count and B1d.count 2254 -> 153; B2.priority 2254 -> 153 (narrow scan). |
+
+Limits of this decision: the comparison is between the two phases, not an isolated one-index-at-a-time measurement; the `PLAN_UNSTABLE` verdicts stay as saved and are read as described at the end of section 7; no write cost was measured.
 
 Write cost of the indexes (R6.3) was not measured.
 

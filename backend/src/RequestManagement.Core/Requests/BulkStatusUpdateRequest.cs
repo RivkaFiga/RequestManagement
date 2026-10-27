@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using RequestManagement.Core.Domain;
 
 namespace RequestManagement.Core.Requests;
@@ -20,8 +21,10 @@ public sealed class BulkStatusUpdateRequest : IValidatableObject
 
     /// <summary>
     /// The decoded items. Meaningful once the request is valid; it never throws before that (MVC reads every public
-    /// property while validating), it just skips items that have no id.
+    /// property while validating), it just skips items that have no id. Not part of the JSON contract, so it is
+    /// absent from the request body and from the OpenAPI schema.
     /// </summary>
+    [JsonIgnore]
     public IReadOnlyList<BulkStatusChange> Changes =>
         (Items ?? [])
             .Where(item => item?.Id is not null)
@@ -100,7 +103,8 @@ public sealed class BulkStatusUpdateItem
 
     public string? RowVersion { get; set; }
 
-    /// <summary>The decoded <see cref="RowVersion"/>. Meaningful once the request is valid.</summary>
+    /// <summary>The decoded <see cref="RowVersion"/>. Meaningful once the request is valid. Not part of the JSON contract.</summary>
+    [JsonIgnore]
     public byte[] RowVersionBytes =>
         UpdateStatusRequest.TryDecodeRowVersion(RowVersion, out var version) ? version : [];
 }
