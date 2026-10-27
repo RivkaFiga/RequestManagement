@@ -1,11 +1,17 @@
-<section class="summary" aria-label="Requests summary" [attr.aria-busy]="state().status === 'loading'">
+<section
+  class="summary"
+  aria-label="Requests summary"
+  [attr.aria-busy]="state().status === 'loading'"
+>
   @if (state().status === 'loading') {
     <mat-progress-bar mode="indeterminate" aria-label="Loading summary" />
   }
 
   @if (state().error; as error) {
     <div class="summary-error" role="alert">
-      <span><strong>{{ error.title }}</strong> The summary could not be loaded.</span>
+      <span
+        ><strong>{{ error.title }}</strong> The summary could not be loaded.</span
+      >
       <button mat-button type="button" (click)="refresh()">Retry</button>
     </div>
   } @else if (state().summary; as summary) {

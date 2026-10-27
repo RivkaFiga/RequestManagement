@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Observable, Subject, catchError, map, of, switchMap } from 'rxjs';
-import { ApiError } from '../core/api-error';
+import { ApiError, toApiError } from '../core/api-error';
 import { RequestSummary } from './request.models';
 import { toLabel } from './request-labels';
 import { RequestsApiService } from './requests-api.service';
@@ -30,7 +30,11 @@ export class SummaryPanelComponent {
   private readonly api = inject(RequestsApiService);
 
   private readonly load$ = new Subject<void>();
-  protected readonly state = signal<SummaryState>({ status: 'loading', summary: null, error: null });
+  protected readonly state = signal<SummaryState>({
+    status: 'loading',
+    summary: null,
+    error: null,
+  });
   protected readonly toLabel = toLabel;
 
   constructor() {
@@ -57,8 +61,4 @@ export class SummaryPanelComponent {
       ),
     );
   }
-}
-
-function toApiError(error: unknown): ApiError {
-  return error instanceof ApiError ? error : new ApiError(0, 'Unexpected error.');
 }

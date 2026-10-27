@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Observable, Subject, catchError, map, of, switchMap } from 'rxjs';
-import { ApiError } from '../core/api-error';
+import { ApiError, toApiError } from '../core/api-error';
 import { StatusHistoryEntry } from './request.models';
 import { toLabel } from './request-labels';
 import { RequestsApiService } from './requests-api.service';
@@ -62,7 +62,7 @@ export class RequestHistoryDialogComponent {
         of<HistoryState>({
           status: 'error',
           entries: [],
-          error: error instanceof ApiError ? error : new ApiError(0, 'Unexpected error.'),
+          error: toApiError(error),
         }),
       ),
     );

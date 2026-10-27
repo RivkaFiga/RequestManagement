@@ -10,7 +10,13 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 export const REQUEST_PRIORITIES = ['Low', 'Medium', 'High'] as const;
 export type RequestPriority = (typeof REQUEST_PRIORITIES)[number];
 
-export const REQUEST_SORT_FIELDS = ['createdAt', 'updatedAt', 'priority', 'status', 'title'] as const;
+export const REQUEST_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'priority',
+  'status',
+  'title',
+] as const;
 export type RequestSortField = (typeof REQUEST_SORT_FIELDS)[number];
 
 export type SortDirection = 'asc' | 'desc';

@@ -25,7 +25,10 @@ describe('RequestsApiService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(withInterceptors([httpErrorInterceptor])),
+        provideHttpClientTesting(),
+      ],
     });
     api = TestBed.inject(RequestsApiService);
     controller = TestBed.inject(HttpTestingController);
@@ -36,9 +39,15 @@ describe('RequestsApiService', () => {
   it('GET /api/requests sends the search params and returns the page', () => {
     const page = { items: [item], page: 2, pageSize: 10, totalCount: 11, totalPages: 2 };
     let result: unknown;
-    api.search({ page: 2, pageSize: 10, status: ['New', 'Waiting'], sortBy: 'title', sortDirection: 'asc' }).subscribe(
-      (r) => (result = r),
-    );
+    api
+      .search({
+        page: 2,
+        pageSize: 10,
+        status: ['New', 'Waiting'],
+        sortBy: 'title',
+        sortDirection: 'asc',
+      })
+      .subscribe((r) => (result = r));
 
     const req = controller.expectOne((r) => r.url === '/api/requests');
     expect(req.request.method).toBe('GET');
@@ -77,7 +86,14 @@ describe('RequestsApiService', () => {
 
   it('GET /api/requests/{id}/history', () => {
     const history = [
-      { id: 2, requestId: 7, previousStatus: 'InProgress', newStatus: 'Completed', changedAt: '2026-10-02T09:00:00Z', changedBy: 'dana' },
+      {
+        id: 2,
+        requestId: 7,
+        previousStatus: 'InProgress',
+        newStatus: 'Completed',
+        changedAt: '2026-10-02T09:00:00Z',
+        changedBy: 'dana',
+      },
     ];
     let result: unknown;
     api.getHistory(7).subscribe((r) => (result = r));
@@ -90,9 +106,13 @@ describe('RequestsApiService', () => {
 
   it('PATCH /api/requests/{id}/status sends status, rowVersion and X-User-Name', () => {
     let result: unknown;
-    api.updateStatus(7, { status: 'InProgress', rowVersion: item.rowVersion }, { changedBy: ' dana ' }).subscribe(
-      (r) => (result = r),
-    );
+    api
+      .updateStatus(
+        7,
+        { status: 'InProgress', rowVersion: item.rowVersion },
+        { changedBy: ' dana ' },
+      )
+      .subscribe((r) => (result = r));
 
     const req = controller.expectOne('/api/requests/7/status');
     expect(req.request.method).toBe('PATCH');
@@ -105,7 +125,9 @@ describe('RequestsApiService', () => {
   it.each([['Dana Levi‏ דנה'], ['דנה'], ['José'], ['a'.repeat(101)], ['line\nbreak'], ['   ']])(
     'PATCH does not send an X-User-Name the header cannot carry (%j)',
     (name) => {
-      api.updateStatus(7, { status: 'Waiting', rowVersion: item.rowVersion }, { changedBy: name }).subscribe();
+      api
+        .updateStatus(7, { status: 'Waiting', rowVersion: item.rowVersion }, { changedBy: name })
+        .subscribe();
 
       const req = controller.expectOne('/api/requests/7/status');
       expect(req.request.headers.has('X-User-Name')).toBe(false);
@@ -114,7 +136,13 @@ describe('RequestsApiService', () => {
   );
 
   it('PATCH sends a 100-character ASCII X-User-Name', () => {
-    api.updateStatus(7, { status: 'Waiting', rowVersion: item.rowVersion }, { changedBy: 'a'.repeat(100) }).subscribe();
+    api
+      .updateStatus(
+        7,
+        { status: 'Waiting', rowVersion: item.rowVersion },
+        { changedBy: 'a'.repeat(100) },
+      )
+      .subscribe();
 
     const req = controller.expectOne('/api/requests/7/status');
     expect(req.request.headers.get('X-User-Name')).toBe('a'.repeat(100));
@@ -136,14 +164,21 @@ describe('RequestsApiService', () => {
       failed: 1,
       results: [
         { id: 1, outcome: 'Updated', rowVersion: 'AAAAAAAAB9E=', error: null },
-        { id: 2, outcome: 'Conflict', rowVersion: 'AAAAAAAAB9I=', error: 'The request was changed by someone else.' },
+        {
+          id: 2,
+          outcome: 'Conflict',
+          rowVersion: 'AAAAAAAAB9I=',
+          error: 'The request was changed by someone else.',
+        },
       ],
     };
     let result: unknown;
-    api.bulkUpdateStatus('Completed', [
-      { id: 1, rowVersion: 'AAAAAAAAB9A=' },
-      { id: 2, rowVersion: 'AAAAAAAAB9B=' },
-    ]).subscribe((r) => (result = r));
+    api
+      .bulkUpdateStatus('Completed', [
+        { id: 1, rowVersion: 'AAAAAAAAB9A=' },
+        { id: 2, rowVersion: 'AAAAAAAAB9B=' },
+      ])
+      .subscribe((r) => (result = r));
 
     const req = controller.expectOne('/api/requests/bulk-status');
     expect(req.request.method).toBe('POST');
@@ -160,10 +195,17 @@ describe('RequestsApiService', () => {
 
   it('surfaces a 409 as an ApiError with typed conflict details', () => {
     let caught: unknown;
-    api.updateStatus(7, { status: 'InProgress', rowVersion: 'stale' }).subscribe({ error: (e: unknown) => (caught = e) });
+    api
+      .updateStatus(7, { status: 'InProgress', rowVersion: 'stale' })
+      .subscribe({ error: (e: unknown) => (caught = e) });
 
     controller.expectOne('/api/requests/7/status').flush(
-      { title: 'Concurrency conflict.', status: 409, currentStatus: 'Waiting', currentRowVersion: 'AAAAAAAAB9M=' },
+      {
+        title: 'Concurrency conflict.',
+        status: 409,
+        currentStatus: 'Waiting',
+        currentRowVersion: 'AAAAAAAAB9M=',
+      },
       { status: 409, statusText: 'Conflict' },
     );
 
@@ -182,7 +224,13 @@ describe('toHttpParams', () => {
   });
 
   it('skips undefined, empty and blank values but keeps zero-length arrays out', () => {
-    const params = toHttpParams({ search: '   ', organizationName: '', assignedTo: undefined, status: [], priority: [] });
+    const params = toHttpParams({
+      search: '   ',
+      organizationName: '',
+      assignedTo: undefined,
+      status: [],
+      priority: [],
+    });
     expect(params.keys()).toEqual([]);
   });
 
@@ -219,7 +267,9 @@ describe('readConflictDetails', () => {
   it('returns null when the 409 lacks the conflict members', () => {
     expect(readConflictDetails(ApiError.fromResponse(409, { title: 'Conflict.' }))).toBeNull();
     expect(
-      readConflictDetails(ApiError.fromResponse(409, { currentStatus: 'Bogus', currentRowVersion: 'AA==' })),
+      readConflictDetails(
+        ApiError.fromResponse(409, { currentStatus: 'Bogus', currentRowVersion: 'AA==' }),
+      ),
     ).toBeNull();
   });
 });

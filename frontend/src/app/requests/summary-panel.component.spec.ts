@@ -42,7 +42,10 @@ describe('SummaryPanelComponent', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       imports: [SummaryPanelComponent],
-      providers: [provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(withInterceptors([httpErrorInterceptor])),
+        provideHttpClientTesting(),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(SummaryPanelComponent);
@@ -71,7 +74,9 @@ describe('SummaryPanelComponent', () => {
   });
 
   it('shows the error with a retry that loads the summary again', async () => {
-    http.expectOne(SUMMARY_URL).flush({ title: 'Boom' }, { status: 500, statusText: 'Server Error' });
+    http
+      .expectOne(SUMMARY_URL)
+      .flush({ title: 'Boom' }, { status: 500, statusText: 'Server Error' });
     await settle();
 
     expect(element.querySelector('[role="alert"]')?.textContent).toContain('Boom');

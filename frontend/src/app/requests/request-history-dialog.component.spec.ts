@@ -5,7 +5,10 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { httpErrorInterceptor } from '../core/http-error.interceptor';
 import { StatusHistoryEntry } from './request.models';
-import { RequestHistoryDialogComponent, RequestHistoryDialogData } from './request-history-dialog.component';
+import {
+  RequestHistoryDialogComponent,
+  RequestHistoryDialogData,
+} from './request-history-dialog.component';
 
 const entries: readonly StatusHistoryEntry[] = [
   {
@@ -86,7 +89,10 @@ describe('RequestHistoryDialogComponent', () => {
   it('shows the error and loads the history again on Retry', async () => {
     http
       .expectOne(historyUrl)
-      .flush({ title: 'Request not found.', detail: 'No request with id 7 exists.' }, { status: 404, statusText: 'Not Found' });
+      .flush(
+        { title: 'Request not found.', detail: 'No request with id 7 exists.' },
+        { status: 404, statusText: 'Not Found' },
+      );
     await settle();
 
     const error = element.querySelector('[data-testid="history-error"]');

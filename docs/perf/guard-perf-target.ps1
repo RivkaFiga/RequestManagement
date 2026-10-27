@@ -76,18 +76,40 @@ function Get-PerfTargetFailures {
     return $failures.ToArray()
 }
 
+# A tool is started by its full path, found through PATH. A program in the current folder or in the repository is never used.
+function Get-GuardTool([string]$Name) {
+    $command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $command) { return $null }
+    $path = $command.Source
+    if ([string]::IsNullOrWhiteSpace($path) -or -not [IO.Path]::IsPathRooted($path) -or $path.StartsWith('\\')) { return $null }
+    $full = [IO.Path]::GetFullPath($path)
+    $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path.TrimEnd('\') + '\'
+    if ([IO.Path]::GetDirectoryName($full).TrimEnd('\') -ieq (Get-Location).ProviderPath.TrimEnd('\')) { return $null }
+    if ($full.StartsWith($repo, [StringComparison]::OrdinalIgnoreCase)) { return $null }
+    $full
+}
+
 function Invoke-GuardSqlcmd {
     param([System.Data.SqlClient.SqlConnectionStringBuilder]$Builder, [string]$Database, [string]$Query)
 
-    $previous = $env:SQLCMDPASSWORD
+    $sqlcmdPath = Get-GuardTool 'sqlcmd'
+    if ($null -eq $sqlcmdPath) { throw 'sqlcmd was not found on PATH outside the current folder and the repository.' }
+    # sqlcmd gets the password only through SQLCMDPASSWORD (never as an argument); every other SQLCMD* variable of this process
+    # (startup script SQLCMDINI, SQLCMDUSER, ...) is hidden for the call and put back afterwards.
+    $saved = @{}
+    foreach ($entry in [Environment]::GetEnvironmentVariables('Process').GetEnumerator()) {
+        if ([string]$entry.Key -like 'SQLCMD*') { $saved[[string]$entry.Key] = [string]$entry.Value }
+    }
     try {
-        $env:SQLCMDPASSWORD = $Builder.Password
-        $output = & sqlcmd -S $Builder.DataSource -U $Builder.UserID -C -b -h -1 -W -d $Database -Q "SET NOCOUNT ON; $Query"
+        foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
+        [Environment]::SetEnvironmentVariable('SQLCMDPASSWORD', $Builder.Password, 'Process')
+        $output = & $sqlcmdPath -S $Builder.DataSource -U $Builder.UserID -C -b -h -1 -W -d $Database -Q "SET NOCOUNT ON; $Query"
         if ($LASTEXITCODE -ne 0) { throw "sqlcmd failed with exit code $LASTEXITCODE." }
         return ($output | Out-String).Trim()
     }
     finally {
-        if ($null -eq $previous) { Remove-Item Env:SQLCMDPASSWORD -ErrorAction SilentlyContinue } else { $env:SQLCMDPASSWORD = $previous }
+        [Environment]::SetEnvironmentVariable('SQLCMDPASSWORD', $null, 'Process')
+        foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }
     }
 }
 
@@ -98,13 +120,18 @@ function Get-PerfServerFailures {
     $failures = New-Object System.Collections.Generic.List[string]
     $builder = New-Object System.Data.SqlClient.SqlConnectionStringBuilder($ConnectionString)
 
-    $state = (& docker inspect --format '{{.State.Status}}/{{if .State.Health}}{{.State.Health.Status}}{{end}}' $Container 2>$null)
+    $dockerPath = Get-GuardTool 'docker'
+    if ($null -eq $dockerPath) {
+        $failures.Add('docker was not found on PATH outside the current folder and the repository.')
+        return $failures.ToArray()
+    }
+    $state = (& $dockerPath inspect --format '{{.State.Status}}/{{if .State.Health}}{{.State.Health.Status}}{{end}}' $Container 2>$null)
     if ($LASTEXITCODE -ne 0 -or $state -ne 'running/healthy') {
         $failures.Add("Container '$Container' is not running and healthy (state: '$state').")
         return $failures.ToArray()
     }
     $port = ($builder.DataSource -split ',')[1]
-    $published = (& docker port $Container 1433/tcp 2>$null | Out-String)
+    $published = (& $dockerPath port $Container 1433/tcp 2>$null | Out-String)
     if ($published -notmatch (":$port\s*$")) {
         $failures.Add("Container '$Container' does not publish 1433/tcp on host port $port.")
         return $failures.ToArray()

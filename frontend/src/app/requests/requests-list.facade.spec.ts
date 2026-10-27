@@ -1,5 +1,9 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../core/api-error';
@@ -21,7 +25,13 @@ const item: RequestItem = {
 };
 
 function page(items: readonly RequestItem[]): PagedResult<RequestItem> {
-  return { items, page: 1, pageSize: 20, totalCount: items.length, totalPages: items.length === 0 ? 0 : 1 };
+  return {
+    items,
+    page: 1,
+    pageSize: 20,
+    totalCount: items.length,
+    totalPages: items.length === 0 ? 0 : 1,
+  };
 }
 
 describe('RequestsListFacade', () => {

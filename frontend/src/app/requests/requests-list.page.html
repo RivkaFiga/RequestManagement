@@ -9,7 +9,9 @@
     [attr.role]="current.kind === 'error' ? 'alert' : 'status'"
     data-testid="status-notice"
   >
-    <p><strong>{{ current.message }}</strong></p>
+    <p>
+      <strong>{{ current.message }}</strong>
+    </p>
     @if (current.detail) {
       <p>{{ current.detail }}</p>
     }
@@ -84,7 +86,9 @@
 
 @if (facade.error(); as error) {
   <div class="message" role="alert">
-    <p><strong>{{ error.title }}</strong></p>
+    <p>
+      <strong>{{ error.title }}</strong>
+    </p>
     @if (error.detail) {
       <p>{{ error.detail }}</p>
     }

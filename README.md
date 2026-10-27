@@ -3,37 +3,58 @@
 Full-stack take-home: .NET backend, SQL Server, Angular frontend.
 The work plan is in [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
 
-> **Status: Phase 1 (foundation and data layer) only.** The API (Phase 2) and the Angular
-> app (Phase 3) do not exist yet. The rest of this README is completed in Phase 6 (T-601/T-602).
+> **Status:** the backend (search, summary, status update with optimistic concurrency, history,
+> bulk update, summary cache), the Angular app and their automated tests are implemented.
+> The performance measurement ([`docs/perf/`](docs/perf)) and the design write-up
+> (decisions, limitations, AI usage; plan T-501 to T-503 and T-602) are **not finished yet**, so
+> this README has no performance numbers. Task status and evidence: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
 
 ## Prerequisites
 
 | Tool | Version | Why |
 |---|---|---|
-| .NET SDK | 10.0.1xx or later feature band (`backend/global.json`) | Build, tests, EF Core tools |
+| .NET SDK | 10.0.1xx or later feature band (`backend/global.json`; developed with 10.0.402) | Build, tests, EF Core tools |
+| Node.js + npm | Node 22 LTS, npm 10 or later (developed with Node 22.22.0, npm 11.8.0; `frontend/package.json` pins `npm@10.9.4`) | Angular app and its tests |
 | Docker Desktop (Linux containers) | any current | Development SQL Server and the integration tests |
 
 Without Docker: use SQL Server Express or LocalDB and put its connection string in the
 steps below; for the integration tests set `TEST_SQL_CONNECTION` (see [Tests](#tests)).
 
 Tip: keep the repository in an ASCII path without spaces (for example `C:\dev\request-management`);
-the Angular tooling in later phases is sensitive to such paths (plan F3/R-07).
+the Angular tooling is sensitive to such paths (plan F3/R-07).
 
-## Solution structure (Phase 1)
+## Quick start
+
+All commands are PowerShell from the repository root. Details for each step are below.
+
+1. Database: `Copy-Item .env.example .env`, edit the password, `docker compose up -d` ([step 1](#1-start-sql-server)).
+2. Connection string in user-secrets, then `dotnet ef database update` ([steps 2 to 4](#2-restore-tools-and-build)).
+3. Seed 100,000 requests ([step 5](#5-seed-100000-requests)).
+4. API: `dotnet run --project src/RequestManagement.Api --launch-profile http` from `backend` ([Run the API](#run-the-api)); Swagger UI at <http://localhost:5080/swagger>.
+5. UI: `npm ci` then `npm start` in `frontend` ([Run the UI](#run-the-ui)); open <http://localhost:4200>.
+6. Tests: [Tests](#tests).
+
+## Solution structure
 
 ```
 backend/
   RequestManagement.sln, global.json, Directory.Build.props, Directory.Packages.props
   .config/dotnet-tools.json            dotnet-ef (local tool)
-  src/RequestManagement.Core           Domain: Request, RequestStatusHistoryEntry, enums, StatusTransitionPolicy
-  src/RequestManagement.Infrastructure EF Core DbContext, mappings, migrations, seeding logic
+  src/RequestManagement.Core           Domain, DTOs, service interfaces, StatusTransitionPolicy (no EF, no ASP.NET)
+  src/RequestManagement.Infrastructure EF Core DbContext, migrations, query/status services, summary cache, seeding logic
+  src/RequestManagement.Api            ASP.NET Core controllers, ProblemDetails error handling, OpenAPI + Swagger UI (Development)
   src/RequestManagement.Seeder         Console app: seed / reset the development database
-  tests/RequestManagement.UnitTests    Model mapping, generator, seeder arguments, transition rules
-  tests/RequestManagement.IntegrationTests  Seeding, reset and constraints against real SQL Server
+  tests/RequestManagement.UnitTests    Transition rules, validation, query building, cache, generator, model mapping
+  tests/RequestManagement.IntegrationTests  API + real SQL Server (Testcontainers): search, status, history, bulk, summary
+frontend/                              Angular app (standalone components, Angular Material, RxJS)
+  src/app/core                         HTTP error interceptor, ApiError
+  src/app/requests                     Models, RequestsApiService (the only HttpClient user), list facade, page and presentational components
+docs/                                  WORK_PLAN.md, perf/ (measurement scripts and assets)
 docker-compose.yml                     Development SQL Server 2022
 ```
 
-`Core` references neither EF Core nor ASP.NET Core.
+`Core` references neither EF Core nor ASP.NET Core. Project references:
+`Api` to `Core` and `Infrastructure`; `Infrastructure` to `Core`.
 
 ## Run the database and seed data
 
@@ -128,6 +149,115 @@ The same `--count` and `--seed` always give the same rows, Ids and checksum.
 docker exec request-management-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "<your password>" -C -d RequestManagement -Q "SELECT COUNT(*) AS Requests FROM dbo.Requests; SELECT MigrationId FROM dbo.__EFMigrationsHistory;"
 ```
 
+## Run the API
+
+From `backend`, with the connection string set as in [step 3](#3-configure-the-connection-string-never-committed)
+(the API and the seeder share the same user-secrets entry; a `ConnectionStrings__RequestManagement`
+environment variable also works):
+
+```powershell
+dotnet run --project src/RequestManagement.Api --launch-profile http
+```
+
+The API listens on <http://localhost:5080>. In Development it serves Swagger UI at
+<http://localhost:5080/swagger> (OpenAPI document at `/openapi/v1.json`), which is the convenient
+way to call the bulk endpoint, which has no screen in the UI.
+
+Configuration (`appsettings.json`):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `SummaryCache:Enabled` | `true` | Caches the summary aggregation; `false` always recomputes it |
+| `SummaryCache:ExpirationSeconds` | `60` | Absolute expiration of the cached summary (must be greater than 0) |
+
+The summary cache is also invalidated after every committed status change (single or bulk).
+
+## Run the UI
+
+From `frontend` (the API must be running on port 5080):
+
+```powershell
+npm ci
+npm start
+```
+
+Open <http://localhost:4200>. The dev server proxies `/api` to `http://localhost:5080`
+(`frontend/proxy.conf.json`), so there is no CORS configuration. Search, filters, sorting and
+paging are all done by the API; the search box is debounced and a newer query cancels the one
+still in flight. The UI shows loading, empty and error states, the summary panel, status changes
+(only the allowed next statuses are offered, and a 409 shows a message and reloads the row) and
+the history of each request.
+
+## API endpoints
+
+| Method | Route | Success | Error codes |
+|---|---|---|---|
+| GET | `/api/requests` | 200 paged list | 400 |
+| GET | `/api/requests/{id}` | 200 | 404 |
+| GET | `/api/requests/summary` | 200 counts by status and priority, plus total (cached) | none |
+| PATCH | `/api/requests/{id}/status` | 200 updated request with the new `rowVersion` | 400, 404, **409**, 422 |
+| GET | `/api/requests/{id}/history` | 200 newest first | 404 |
+| POST | `/api/requests/bulk-status` | 200 with one outcome per item | 400 |
+
+Errors are `application/problem+json`; an unhandled error returns 500 without internals.
+Enums travel as strings (`"InProgress"`).
+
+**List query parameters.** `page` (>= 1, default 1), `pageSize` (1 to 100, default 20), `search`
+(2 to 100 characters, case-insensitive contains on title or organization name), `status` and
+`priority` (repeat the parameter for several values), `organizationName` (starts with),
+`assignedTo` (exact), `createdFrom` (inclusive) and `createdTo` (exclusive, UTC), `sortBy`
+(`createdAt` default, `updatedAt`, `priority`, `status`, `title`) and `sortDirection`
+(`asc` or `desc`, default `desc`). All filters combine with AND; `Id` is the sort tie-breaker.
+
+**Status update and concurrency.** Send the `rowVersion` from the last response. The update is
+`UPDATE ... WHERE Id = @id AND RowVersion = @rv` in one transaction together with the history row.
+
+```http
+PATCH /api/requests/42/status
+X-User-Name: dana
+Content-Type: application/json
+
+{ "status": "InProgress", "rowVersion": "AAAAAAAAB9E=" }
+```
+
+| Result | Meaning |
+|---|---|
+| 200 | Updated; `updatedAt` and `rowVersion` changed; a history row was added with `changedBy` from `X-User-Name` (default `anonymous`, at most 100 characters, not authenticated) |
+| 400 | Malformed body, undefined status value, or header too long |
+| 404 | No such request |
+| 409 | Stale `rowVersion`; the body carries `currentStatus` and `currentRowVersion`, nothing is changed |
+| 422 | Transition not allowed |
+
+Allowed transitions (assumption A1): `New` to `InProgress` or `Waiting`; `InProgress` to `Waiting`
+or `Completed`; `Waiting` to `InProgress` or `Completed`. `Completed` is final and setting the
+same status again is rejected. The rules live only in `StatusTransitionPolicy`.
+
+**Bulk update (Partial Success).** Up to 100 items, each with its own `rowVersion`. Every item is
+applied independently with the same rules as the single update, in its own transaction, so one
+stale item does not block the others. A valid call always returns 200 with one result per item,
+in the order sent. The whole call is rejected with 400, and nothing is changed, when there are no
+items, more than 100, duplicate ids, or a missing or malformed field.
+
+```http
+POST /api/requests/bulk-status
+Content-Type: application/json
+
+{ "status": "Waiting", "items": [ { "id": 1, "rowVersion": "AAAAAAAAB9E=" }, { "id": 999999999, "rowVersion": "AAAAAAAAB9E=" } ] }
+```
+
+```json
+{
+  "requested": 2, "succeeded": 1, "failed": 1,
+  "results": [
+    { "id": 1, "outcome": "Updated", "rowVersion": "<new version>", "error": null },
+    { "id": 999999999, "outcome": "NotFound", "rowVersion": null, "error": "..." }
+  ]
+}
+```
+
+`outcome` is `Updated`, `NotFound`, `Conflict` (with the current `rowVersion` so the client can
+retry) or `InvalidTransition`.
+
 ## Data model
 
 **`Requests`**
@@ -187,6 +317,11 @@ by design (hypothesis H1).
 cd backend
 dotnet test tests/RequestManagement.UnitTests
 dotnet test tests/RequestManagement.IntegrationTests
+
+cd ../frontend
+npm ci          # once
+npm test -- --watch=false
+npm run lint    # Angular lint (ESLint)
 ```
 
 The integration tests start a SQL Server 2022 container with Testcontainers (Docker required).
@@ -197,3 +332,22 @@ Without Docker, point them at an existing SQL Server; they create and drop a uni
 $env:TEST_SQL_CONNECTION = "Server=localhost\SQLEXPRESS;Integrated Security=True;TrustServerCertificate=True"
 dotnet test tests/RequestManagement.IntegrationTests
 ```
+
+## Dependencies and why
+
+Backend (versions are centralised in `backend/Directory.Packages.props`):
+
+| Package | Why |
+|---|---|
+| `Microsoft.EntityFrameworkCore.SqlServer` 10.0.13 | Data access; its SQL Server client is also used for `SqlBulkCopy` in the seeder |
+| `Microsoft.EntityFrameworkCore.Design` 10.0.13 | `dotnet ef` migrations |
+| `Microsoft.AspNetCore.OpenApi` 10.0.0, `Swashbuckle.AspNetCore.SwaggerUI` 10.0.0 | OpenAPI document and Swagger UI (Development only) so reviewers can call every endpoint, including bulk |
+| `Microsoft.Extensions.Configuration.UserSecrets` / `.EnvironmentVariables` 10.0.0 | Seeder connection string outside the repository |
+| `Microsoft.OpenApi` 2.7.5, `System.Security.Cryptography.Pkcs` 9.0.21 | Version pins for transitive packages with published security advisories |
+| `xunit` 2.9.3, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk` | Test framework; plain xUnit asserts, no assertion library |
+| `Testcontainers.MsSql` 4.16.0 | Real SQL Server for the integration tests (`rowversion` and `LIKE` need the real engine) |
+| `Microsoft.AspNetCore.Mvc.Testing` 10.0.0 | Hosts the API in-process for integration tests |
+
+Frontend (`frontend/package.json`): Angular 21 with Angular Material and CDK (table, paginator, dialog,
+snackbar), RxJS (debounce and request cancellation), Vitest and jsdom (the Angular 21 default test runner),
+Prettier (formatting), ESLint with `angular-eslint` and `typescript-eslint` (the Angular lint of QC-2, `npm run lint`).

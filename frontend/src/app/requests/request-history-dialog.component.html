@@ -10,7 +10,9 @@
     @case ('error') {
       @if (state().error; as error) {
         <div class="message" role="alert" data-testid="history-error">
-          <p><strong>{{ error.title }}</strong></p>
+          <p>
+            <strong>{{ error.title }}</strong>
+          </p>
           @if (error.detail) {
             <p>{{ error.detail }}</p>
           }
@@ -20,7 +22,9 @@
     }
     @case ('loaded') {
       @if (state().entries.length === 0) {
-        <p class="message" role="status" data-testid="history-empty">This request has no status changes yet.</p>
+        <p class="message" role="status" data-testid="history-empty">
+          This request has no status changes yet.
+        </p>
       } @else {
         <table class="history" aria-label="Status history">
           <thead>

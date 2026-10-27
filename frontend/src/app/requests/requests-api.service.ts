@@ -54,8 +54,14 @@ export class RequestsApiService {
   }
 
   /** `PATCH /api/requests/{id}/status`. Fails with a 409 `ApiError` when `rowVersion` is stale. */
-  updateStatus(id: number, body: UpdateStatusBody, options: ChangedByOptions = {}): Observable<RequestItem> {
-    return this.http.patch<RequestItem>(`${BASE_URL}/${id}/status`, body, { headers: toHeaders(options) });
+  updateStatus(
+    id: number,
+    body: UpdateStatusBody,
+    options: ChangedByOptions = {},
+  ): Observable<RequestItem> {
+    return this.http.patch<RequestItem>(`${BASE_URL}/${id}/status`, body, {
+      headers: toHeaders(options),
+    });
   }
 
   /** `POST /api/requests/bulk-status`: partial success, one result per item in the order sent. */
