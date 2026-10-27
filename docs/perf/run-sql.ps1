@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    T-501 (work plan section 5.2, step 3): measures the captured SQL of B1a to B1d and B2 against the dedicated performance
+    T-501 (work plan section 5.2, step 3): measures the captured SQL of B1a to B1f and B2 against the dedicated performance
     database and saves the statistics, the actual plans and the checks that tie them together.
 
 .DESCRIPTION
@@ -26,7 +26,7 @@
     Files written (relative to the results root; T-502 must use the same names for 'after'):
       <Phase>/indexes.txt, <Phase>/dataset-check.txt, <Phase>/fidelity.txt,
       <Phase>/<scenario>.stats.txt                one per scenario (IO and TIME of all its statements; deviation A),
-      <Phase>/<scenario>.<part>.sqlplan           one per statement (count|data for B1a-B1d, status|priority for B2),
+      <Phase>/<scenario>.<part>.sqlplan           one per statement (count|data for B1a-B1f, status|priority for B2),
       environment.txt                             only in phase 'before', only when it does not exist yet.
 
     Exit codes: 0 success, 1 stopped (the message names the code; nothing was moved into the results folder).
@@ -34,7 +34,7 @@
 .PARAMETER Phase
     'before' or 'after'. Required.
 .PARAMETER Scenario
-    A subset of B1a, B1b, B1c, B1d, B2. A subset is only accepted together with a -ResultsRoot other than docs/perf/results,
+    A subset of B1a, B1b, B1c, B1d, B1e, B1f, B2. A subset is only accepted together with a -ResultsRoot other than docs/perf/results,
     so that a partial set can never be mistaken for the official results.
 .PARAMETER ResultsRoot
     Defaults to docs/perf/results.
@@ -48,7 +48,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('before', 'after')][string]$Phase,
-    [ValidateSet('B1a', 'B1b', 'B1c', 'B1d', 'B2')][string[]]$Scenario,
+    [ValidateSet('B1a', 'B1b', 'B1c', 'B1d', 'B1e', 'B1f', 'B2')][string[]]$Scenario,
     [string]$ResultsRoot,
     [int]$ExpectedRowCount = 100000,
     [long]$ExpectedChecksum = -1953119262,
