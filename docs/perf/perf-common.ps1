@@ -764,6 +764,24 @@ function Get-PerfSqlcmdEnvironment([string]$Password) {
     $environment
 }
 
+# The sqlcmd command line of Invoke-PerfSqlcmd (password excluded: it travels in SQLCMDPASSWORD). Separate so that the offline
+# tests can check it. sqlcmd refuses -h together with -y ("The -h and the -y 0 options are mutually exclusive"), which a live run
+# found: the XML mode (the plan, via -y 0, otherwise sqlcmd cuts the xml column at 256 characters) must not pass -h. It then
+# prints one column header per result set; Get-ShowPlans reads only the <ShowPlanXML> element and the statistics parser only
+# its own message lines, so the headers do not matter. The other modes keep -h -1 (no headers) exactly as before.
+function Get-PerfSqlcmdArguments {
+    param(
+        $Builder,
+        [Parameter(Mandatory = $true)][string]$File,
+        [switch]$Xml,
+        [int]$TimeoutSeconds = 300
+    )
+    $arguments = @('-S', $Builder.DataSource, '-U', $Builder.UserID, '-C', '-b', '-d', $script:PerfDatabase, '-t', "$TimeoutSeconds")
+    if ($Xml) { $arguments += @('-y', '0', '-w', '65535') } else { $arguments += @('-h', '-1', '-W', '-s', '|') }
+    $arguments += @('-i', $File)
+    $arguments
+}
+
 function Invoke-PerfSqlcmd {
     param(
         $Builder,
@@ -778,9 +796,7 @@ function Invoke-PerfSqlcmd {
     Assert-ReadOnlySql $sql
     $file = Join-Path $WorkDir ('q-' + [guid]::NewGuid().ToString('N') + '.sql')
     Write-Utf8NoBom $file $sql
-    $arguments = @('-S', $Builder.DataSource, '-U', $Builder.UserID, '-C', '-b', '-d', $script:PerfDatabase, '-t', "$TimeoutSeconds", '-h', '-1')
-    if ($Xml) { $arguments += @('-y', '0', '-w', '65535') } else { $arguments += @('-W', '-s', '|') }
-    $arguments += @('-i', $file)
+    $arguments = Get-PerfSqlcmdArguments -Builder $Builder -File $file -Xml:$Xml -TimeoutSeconds $TimeoutSeconds
     $run = Invoke-ChildProcess -FileName 'sqlcmd' -Arguments $arguments -ChildEnv (Get-PerfSqlcmdEnvironment $Builder.Password) -TimeoutSeconds ($TimeoutSeconds + 30)
     if ($run.TimedOut) { Stop-Run 'SQLCMD_TIMEOUT' "sqlcmd did not finish within $TimeoutSeconds s." }
     if ($run.ExitCode -ne 0) {
