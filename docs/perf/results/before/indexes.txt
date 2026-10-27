@@ -1,0 +1,8 @@
+T-501 - indexes present in RequestManagement_Perf, phase 'before'
+Captured: 2026-10-27T17:01:55 local time by run-sql.ps1 (read-only sys.indexes / sys.index_columns / sys.dm_db_partition_stats). HEAD cd58ab230f9c5f88a08c5d1f7ddc00b980274255.
+Phase check: none of the 5 AddQueryIndexes indexes is present (required for phase before).
+Fields: Table | Index | Type | Keys | Included | Rows | Pages
+__EFMigrationsHistory | PK___EFMigrationsHistory | CLUSTERED | MigrationId ASC |  | 1 | 2
+Requests | PK_Requests | CLUSTERED | Id ASC |  | 100000 | 2254
+RequestStatusHistory | PK_RequestStatusHistory | CLUSTERED | Id ASC |  | 0 | 0
+RequestStatusHistory | IX_RequestStatusHistory_RequestId_ChangedAt | NONCLUSTERED | RequestId ASC, ChangedAt DESC |  | 0 | 0

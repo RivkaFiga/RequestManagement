@@ -7,7 +7,7 @@ Status (2026-10-27): accepted by the project owner on 2026-10-23; **A and B are 
 | A: one `.sqlplan` per statement | Reconciled in the plan (§5.3 row for the plan files; T-501 acceptance). |
 | B: timings measured with `STATISTICS XML` off, plus one extra XML execution | Reconciled in the plan (§5.2 step 3). The wording on `query_plan_hash` and `fidelity.txt` was added with it. |
 | C: separate p50/p95 file | Not adopted (unchanged). |
-| D: dataset created with `run-seeder.ps1 -Mode Execute` / `--create-new`, not `Seeder --reset` | **Open.** §5.2 step 1 still says `--reset`. The record is `results/dataset.txt`. `results/seeder-run.txt` was never created (the wrapper stopped after the Seeder finished; see `dataset.txt`). |
+| D: dataset created with `run-seeder.ps1 -Mode Execute` / `--create-new`, not `Seeder --reset` | **Reconciled in the plan** (§5.2 step 1 now describes what was run and why). `results/seeder-run.txt` was never created and cannot be created after the fact; the record of the run is `results/dataset.txt` (the Seeder output was copied from the console, with the wrapper defect noted there). |
 | E: scenarios B1e and B1f added | Written into §5.1 of the plan (approved 2026-10-27). |
 
 The plan's own status for T-501 to T-503 was not changed by this reconciliation: no measurement result exists yet.
@@ -44,7 +44,7 @@ The plan's own status for T-501 to T-503 was not changed by this reconciliation:
 - **Plan (§5.2 step 1):** `Seeder --reset --count 100000`.
 - **Done instead:** `docs/perf/run-seeder.ps1 -Mode Execute` ran the Seeder with `--create-new --expect-server localhost,1433 --expect-database RequestManagement_Perf --count 100000 --seed 20261020 --batch-size 10000` (2026-10-23). `--create-new` creates the database and refuses an existing one; `--reset` drops it, which is never offered for the performance database.
 - **Why:** `RequestManagement_Perf` shares the server with the development database, and the Seeder guards (`--expect-*`) make a wrong target impossible. `--reset` would drop a database.
-- **Consequences:** same seed, count and checksum (`-1953119262`), so the data is identical to a `--reset` run. The `T501_PERF_DB` marker was written by hand with the statement the script uses (`dataset.txt`, section 2), and `seeder-run.txt` does not exist. **Not reconciled** in `WORK_PLAN.md`.
+- **Consequences:** same seed, count and checksum (`-1953119262`), so the data is identical to a `--reset` run. The `T501_PERF_DB` marker was written by hand with the statement the script uses (`dataset.txt`, section 2), and `seeder-run.txt` does not exist. Reconciled in `WORK_PLAN.md` §5.2 step 1 (2026-10-27); the missing `seeder-run.txt` stays missing and is stated there.
 
 ## Deviation E: two extra scenarios, B1e and B1f
 
@@ -65,4 +65,12 @@ These are offline self-tests of the scripts. They are **not** performance result
 
 The suite's own list of what it does not cover still applies (see the header of `test-perf-scripts.ps1`): the shape of real `sqlcmd` output, the T-SQL of the index listing, the plan-cache and schema-state queries, the guard against a real container, the API start and port-ownership query, and the typing of the confirmation sentence at a real console. Two defects of that kind were found earlier only in a live run (`SCHEMA_STEP.md`), so the first live run of `run-sql.ps1` and `measure-api.ps1` may still reveal others.
 
-Not done yet: any live run of `run-sql.ps1` or `measure-api.ps1`, the removal and restoration of the five indexes, and every measurement of T-501 to T-503. The statement above that no measurement exists yet is unchanged.
+When this section was written (before the live runs below), nothing had been run against the database. The live runs followed the same day and are described in the next section.
+
+## Live runs (2026-10-27)
+
+- **Defect found by the first live run.** `run-sql.ps1 -Phase before` stopped with `SQLCMD_FAILED`: `sqlcmd` rejects `-h` together with `-y 0`, which the XML plan execution passed. The command line is now built by `Get-PerfSqlcmdArguments` (the XML mode passes `-y 0 -w 65535` and no `-h`; the other modes are unchanged), covered by six offline tests (`test-perf-scripts.ps1` 578/578 at that commit), commit `cd58ab2`. No result had been written by the failed run. Offline tests cannot see this kind of defect, so the live runs were the first real test of the scripts.
+- **Index removal and restoration** with `set-index-state.ps1` and its typed confirmation. The first restoration attempt stopped at Gate 6 because one other session was connected (nothing was changed); a repeat of the gates passed a minute later and the restoration was done.
+- **Measurements:** `run-sql.ps1` and `measure-api.ps1` for the phases `before` and `after`, one run each, on commit `cd58ab2`. The results are under `results/before/` and `results/after/` and are reported in [`PERFORMANCE.md`](PERFORMANCE.md).
+- **Known limitation, left as saved:** in `after`, 11 of 14 statements are `PLAN_UNSTABLE` (in `before`, none). The plan cache was not cleared and the phases were not repeated, by decision of the project owner. `PERFORMANCE.md` section 7 describes it and a possible explanation (not proven).
+- **Still open:** `results/seeder-run.txt` does not exist (stated in the plan, §5.2 step 1), and nothing in `results/` is committed yet. Deviation D itself is reconciled in the plan.

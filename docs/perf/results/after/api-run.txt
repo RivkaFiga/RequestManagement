@@ -1,0 +1,22 @@
+T-501 - API measurement run, phase 'after'
+Captured: 2026-10-27T17:11:49 local time by measure-api.ps1. HEAD cd58ab230f9c5f88a08c5d1f7ddc00b980274255. backend/src has uncommitted changes: no.
+Database: RequestManagement_Perf on localhost,1433; the index listing matched phase 'after'.
+API build: C:\Users\משתמש חדש\Desktop\AAA\RequestManagement\backend\src\RequestManagement.Api\bin\Release\net10.0\RequestManagement.Api.dll  sha256 0B68D04CE2D9409C3A88D5DF139CE31D9D8A6AE9D6F7389C2FB0C7E99A01B042  built 2026-10-27T13:52:34.6341152Z
+Settings of every instance: ASPNETCORE_ENVIRONMENT=Production, Logging__LogLevel__Default=Warning, ASPNETCORE_URLS=http://127.0.0.1:5190, isolated APPDATA, the checked connection string.
+Variables removed from the API's environment before its start (names only): ConnectionStrings__RequestManagement
+Calls: 10 warm-up (not recorded) and 100 sequential measured calls per scenario/variant; per-call timeout 30 s; every call must be HTTP 200 with the same fingerprint.
+Percentiles: nearest-rank on the measured calls (the value at position ceil(p * n) of the sorted times). Times are wall-clock milliseconds from sending the request to reading the whole body, on this machine, over loopback.
+
+instance 1: SummaryCache__Enabled=true (pid 17300)
+  B1a default: GET /api/requests?status=InProgress&priority=High&createdFrom=2026-07-03T00:00:00Z&createdTo=2026-10-01T00:00:00Z&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20  total=554 items=20  p50 15.905 ms  p95 23.639 ms
+  B1b default: GET /api/requests?sortBy=createdAt&sortDirection=desc&page=2500&pageSize=20  total=100000 items=20  p50 120.213 ms  p95 185.246 ms
+  B1c default: GET /api/requests?search=payroll&status=New&page=1&pageSize=20  total=767 items=20  p50 118.185 ms  p95 153.380 ms
+  B1d default: GET /api/requests?sortBy=title&sortDirection=asc&page=1&pageSize=20  total=100000 items=20  p50 90.612 ms  p95 121.789 ms
+  B1e default: GET /api/requests?assignedTo=handler-07&status=InProgress&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20  total=505 items=20  p50 25.250 ms  p95 34.773 ms
+  B1f default: GET /api/requests?organizationName=Aurora&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20  total=15874 items=20  p50 32.695 ms  p95 45.344 ms
+  B2 cache-on: GET /api/requests/summary  total=100000 items=0  p50 21.930 ms  p95 32.507 ms
+
+instance 2: SummaryCache__Enabled=false (pid 28372)
+  B2 cache-off: GET /api/requests/summary  total=100000 items=0  p50 40.012 ms  p95 46.534 ms
+
+API log lines at warn/fail/crit level (the log level was Warning): 0

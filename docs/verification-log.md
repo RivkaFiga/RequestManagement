@@ -108,6 +108,6 @@ The added README paragraphs describe behaviour that this run already exercised; 
 ## Why T-604 is not marked Done
 
 - The criterion is that "every step and smoke check passes with no undocumented action". Every step and S-1 to S-7 passed, and every deviation and finding is now documented (the README now covers deviations 1 to 4), but the README text added afterwards was not re-followed.
-- T-604 depends on T-601 to T-603: T-601 is Done; T-602 (waits for the performance report T-503 and the author's hand-made-changes list) and T-603 (waits for the commit) are In Progress.
+- T-604 depends on T-601 to T-603: T-601 is Done; T-602 and T-603 were In Progress when the run was made. Later on 2026-10-27, T-602 was marked Done (the README "AI usage" section now has "The author's part", limited to what the author confirmed and the repository records); T-603 still waits for the commit.
 - The verification is "the committed log"; nothing was committed (no commit was requested).
 - The instance `rm-t604-sql`, its volume `rmc-t604_sqlserver-data` and the clone `C:\rmc-t604` are still in place; cleanup was not requested.

@@ -8,15 +8,18 @@ The work plan is in [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
 > steps were checked in a clean clone, with deviations that are documented in this README and in
 > [`docs/verification-log.md`](docs/verification-log.md) (a second SQL Server instance and port, the
 > connection string from the environment, the Seeder guards, `--no-launch-profile`).
-> The performance measurement ([`docs/perf/`](docs/perf), plan T-501 to T-503) is **not finished**:
-> there is no `docs/PERFORMANCE.md` and this README has no performance numbers. Task status and evidence: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
+> The performance measurement ([`docs/perf/`](docs/perf), plan T-501 to T-503) was run once per phase
+> and is reported in [`docs/perf/PERFORMANCE.md`](docs/perf/PERFORMANCE.md), **with a stated limitation**:
+> in the `after` phase only 3 of 14 statements were marked plan-stable, so the before/after comparison
+> is not claimed to be fully valid. The tasks T-501 to T-503 are not marked Done. This README quotes no
+> performance numbers. Task status and evidence: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
 
 ## Prerequisites
 
 | Tool | Version | Why |
 |---|---|---|
 | .NET SDK | 10.0.1xx or later feature band (`backend/global.json`; developed with 10.0.402) | Build, tests, EF Core tools |
-| Node.js + npm | Node 22 LTS, npm 10 or later (developed with Node 22.22.0, npm 11.8.0; `frontend/package.json` pins `npm@10.9.4`) | Angular app and its tests |
+| Node.js + npm | Node 22 LTS, npm 10 or later (developed with Node 22.22.0, npm 11.8.0; `.nvmrc` pins 22.22.0, `frontend/package.json` pins `npm@10.9.4`) | Angular app and its tests |
 | Docker Desktop (Linux containers) | any current | Development SQL Server and the integration tests |
 
 Without Docker: use SQL Server Express or LocalDB and put its connection string in the
@@ -51,7 +54,7 @@ backend/
 frontend/                              Angular app (standalone components, Angular Material, RxJS)
   src/app/core                         HTTP error interceptor, ApiError
   src/app/requests                     Models, RequestsApiService (the only HttpClient user), list facade, page and presentational components
-docs/                                  WORK_PLAN.md, verification-log.md (clean-clone check), perf/ (measurement scripts and assets)
+docs/                                  WORK_PLAN.md, verification-log.md (clean-clone check), perf/ (measurement scripts, results, PERFORMANCE.md)
 docker-compose.yml                     Development SQL Server 2022
 ```
 
@@ -334,9 +337,11 @@ retry) or `InvalidTransition`.
 | `IX_Requests_OrganizationName_CreatedAt` (OrganizationName, CreatedAt DESC) | AddQueryIndexes | Organization starts-with filter (`LIKE 'x%'` can seek) |
 | `IX_Requests_Priority_Status` (Priority, Status) | AddQueryIndexes | Count by priority from a narrow index |
 
-These are the plan's hypotheses (§4.3). Phase 5 measures them on the 100,000-row data set
-and drops any index that shows no benefit; contains-search on `Title` is not index-backed
-by design (hypothesis H1).
+These are the plan's design (§4.3). One measurement per phase on the 100,000-row data set is in
+[`docs/perf/PERFORMANCE.md`](docs/perf/PERFORMANCE.md): each index appears in at least one saved
+execution plan after the indexes were restored, but no index was dropped and re-measured on its own, so no
+index has been confirmed or removed on measured benefit alone. Contains-search on `Title` is not
+index-backed by design (hypothesis H1; the report supports it).
 
 ## Seed data
 
@@ -385,9 +390,11 @@ query that projects straight into `RequestDto` (no entity is materialised or ret
 pages in application memory, and the Angular app never does either. The indexes and the query patterns
 they serve are in [Indexes and why](#indexes-and-why).
 
-**Not yet measured.** The index choices are the plan's hypotheses. The 100,000-row measurement
-(query plans, logical reads, API latency; plan T-501 to T-503) has not been completed, so this
-README makes no performance claim and there is no `docs/PERFORMANCE.md` yet.
+**Measured once, with a limitation.** The 100,000-row measurement (query plans, logical reads, API
+latency; plan T-501 to T-503) is in [`docs/perf/PERFORMANCE.md`](docs/perf/PERFORMANCE.md). In the
+`after` phase only 3 of the 14 statements were marked plan-stable by the measurement script; the report
+keeps that marking and does not claim that the improvements are caused by the indexes alone. This README
+therefore quotes no performance numbers; read the report for them and for the caveats.
 
 ### Concurrency and bulk update
 
@@ -407,8 +414,8 @@ fields) is rejected with 400 and changes nothing.
 ### Cache and invalidation
 
 Only the global summary (counts by status and priority, plus the total) is cached, in a singleton
-`RequestSummaryCache` wrapping a lock and an in-memory entry (it does not use `IMemoryCache`; the plan
-text that mentions `IMemoryCache` is outdated on this point). It is read by every user, aggregates all
+`RequestSummaryCache` wrapping a lock and an in-memory entry (it does not use `IMemoryCache`; the plan,
+D3 and §4.1, was corrected to say so). It is read by every user, aggregates all
 rows, is small, and changes only on a status update, so the invalidation points are exact. Expiry is
 `SummaryCache:ExpirationSeconds` (default 60). The status services call `Invalidate()` after every
 committed single or bulk update. A generation counter stops a read that started before the commit from
@@ -434,10 +441,11 @@ filter semantics, page-size limit) are listed in [`docs/WORK_PLAN.md`](docs/WORK
 ### Known limitations and possible improvements
 
 - **Contains-search is not index-backed.** `search` is a case-insensitive *contains* on title or
-  organization name, which cannot seek on a B-tree index; its cost on 100,000 rows has not been measured
-  (hypothesis H1). Improvement: SQL Server full-text search, or keeping the 2-character minimum together
-  with selective filters. Offset paging may also get slower on very deep pages (H2, unmeasured); keyset
-  pagination is the improvement.
+  organization name, which cannot seek on a B-tree index; the measurement scans all 100,000 rows for its
+  count query (hypothesis H1, see the performance report). Improvement: SQL Server full-text search, or
+  keeping the 2-character minimum together with selective filters. Deep pages still scan and sort in the
+  measurement; whether paging cost grows with the offset (H2) was not tested because only one offset was
+  measured. Keyset pagination is the improvement.
 - **`ChangedBy` is not authenticated.** It is whatever the client sends in `X-User-Name`; there is no
   authentication or authorisation (out of scope in the plan).
 - **Shared `UserSecretsId`.** The Api and the Seeder share one user-secrets entry for all clones on the
@@ -464,7 +472,7 @@ direction and with the author approving the steps that touched the database or t
 | Work plan (`docs/WORK_PLAN.md`) | Drafted and revised with AI; reviewed against the assignment PDF | Requirement catalogue and traceability cross-checked against the PDF; task statuses changed only with recorded evidence |
 | Backend (Core, Infrastructure, Api, Seeder) | Written with AI | Unit tests (188) and integration tests against real SQL Server in Testcontainers (133), including the parallel-update test (IT-4) and error-shape tests; `dotnet format` and a 0-warnings build |
 | Angular app | Written with AI | 62 Vitest tests, Angular lint (ESLint), `ng build`, and browser smoke checks S-1 to S-7 |
-| Performance scripts (`docs/perf/`) | Written with AI | Offline self-tests passed on 2026-10-27: `test-perf-scripts.ps1` 572/572 and `test-guard.ps1` 18/18. They opened no database connection, so they show that the scripts' own logic and guards behave as designed, not that anything was measured. No live run of the scripts and no performance measurement has been done yet (details: `docs/perf/DEVIATIONS.md`) |
+| Performance scripts (`docs/perf/`) | Written with AI | Offline self-tests passed on 2026-10-27: `test-perf-scripts.ps1` 572/572 and `test-guard.ps1` 18/18. They opened no database connection, so they show that the scripts' own logic and guards behave as designed, not that anything was measured. The scripts were then run live against the dedicated performance database (one run per phase, 2026-10-27); the first live run found a defect in the `sqlcmd` arguments that the offline tests could not see, which was fixed and covered by a new test. Results and their limitation: `docs/perf/PERFORMANCE.md`; notes: `docs/perf/DEVIATIONS.md` |
 | Documentation (this README, verification log) | Written with AI | Commands compared with `launchSettings.json`, `proxy.conf.json`, `package.json`, the controllers and DTOs, and then followed in a clean clone |
 
 **Code-quality review (T-603).** The AI-written code was read against nine checks (QC-1 to QC-9 in
@@ -475,15 +483,20 @@ forward the `CancellationToken`; a 500 carries no stack trace; the three request
 mechanism; logs carry no bodies or connection strings; nothing from the plan's out-of-scope list was added.
 What the review **changed**: Prettier formatting of 20 frontend files that did not satisfy the repository's
 `.prettierrc`, four copies of the error-conversion expression replaced by one `toApiError`, and the missing
-Angular linter (`angular-eslint` 21) added. The `IMemoryCache` mismatch between plan and code was found and is
-recorded, not edited out of the plan.
+Angular linter (`angular-eslint` 21) added. The `IMemoryCache` mismatch between plan and code was found in the
+review and then corrected in the plan (D3 and §4.1).
 
 **Clean-clone verification (T-604).** Every run step and smoke check passed in a fresh clone against a
 separate temporary SQL Server instance; the deviations from the README and the findings are in
 [`docs/verification-log.md`](docs/verification-log.md).
 
-**Changes made by hand by the author: not recorded.** The repository history does not show which edits
-the author made without AI; the author must add that list here before submission.
+**The author's part.** The author describes their part as reviewing the AI's work. The repository records
+these decisions of the author: approving each step that touched the database or the repository (the
+performance database steps, the temporary SQL Server instance of the T-604 clean-clone check); approving the
+two extra performance scenarios B1e and B1f ([`docs/perf/DEVIATIONS.md`](docs/perf/DEVIATIONS.md), deviation
+E); and deciding not to clear the plan cache or repeat the `after` measurement, which is why 11 of its 14
+statements stay `PLAN_UNSTABLE` ([`docs/perf/PERFORMANCE.md`](docs/perf/PERFORMANCE.md), section 7). The repository
+does not show whether the author wrote or edited anything by hand, and this README makes no claim about it.
 
 ## Dependencies and why
 
