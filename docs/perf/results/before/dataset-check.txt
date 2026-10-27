@@ -1,0 +1,6 @@
+T-501 - dataset check, phase 'before'
+Captured: 2026-10-27T17:01:55 local time by run-sql.ps1 (read-only). HEAD cd58ab230f9c5f88a08c5d1f7ddc00b980274255.
+Database: RequestManagement_Perf on localhost,1433
+rows: 100000 (expected 100000): match
+checksum: -1953119262 (expected -1953119262): match
+checksum_query: SELECT CHECKSUM_AGG(CHECKSUM([Id],[Title],[OrganizationName],[Status],[Priority],[AssignedTo],[CreatedAt],[UpdatedAt])) FROM dbo.Requests   (same formula as results/dataset.txt)

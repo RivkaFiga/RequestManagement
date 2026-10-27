@@ -1,0 +1,27 @@
+T-501 - environment (section 5.2, step 6)
+Captured: 2026-10-27T17:01:55 local time by run-sql.ps1 in phase 'before'. Written once; later phases compare against it, they do not replace it.
+Commit (HEAD): cd58ab230f9c5f88a08c5d1f7ddc00b980274255
+backend/src has uncommitted changes: no
+CPU: 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz ; physical cores 4 ; logical processors 8
+RAM: 15.7 GB
+OS: ‏‏Microsoft Windows 11 Pro 10.0.26300
+PowerShell: 5.1.26100.9711
+SQL Server: Docker container 'request-management-sql' (image sha256:cf8f0ab2ebe61feec2eed2629061a07d247f791c2a8ddda74a4ac9f06a291718; config image mcr.microsoft.com/mssql/server:2022-latest; started 2026-10-27T10:21:56.101953208Z; status running)
+SELECT @@VERSION:
+  Microsoft SQL Server 2022 (RTM-CU27-GDR) (KB5126934) - 16.0.4305.5 (X64) 
+  	Oct  2 2026 17:28:11 
+  	Copyright (C) 2022 Microsoft Corporation
+  	Developer Edition (64-bit) on Linux (Ubuntu 22.04.5 LTS) <X64>
+Scripts:
+  run-sql.ps1 sha256 90B7592EBE2C9FA2B0EA644B7CA84300D25123745BF3D6B3B7110A6C9424CED2
+  measure-api.ps1 sha256 17C7169723631337BC510B7FEB8338B5D31E67C65909E2E4AE05D828F099A273
+  perf-common.ps1 sha256 4BE588180CE604E6D7F07E1DCE0F0E14E6568B3D1825418148F8E4D67EE8D47D
+  guard-perf-target.ps1 sha256 B1F8F1BAA0B9DACCD5EC810CCB116EEDD133E7BAF747125D49E9774C6A1050F6
+SQL files:
+  docs/perf/sql/B1a.sql sha256 92B4F87D198510A5C850BA3BBB054E93F0F2B63F7A661B95A6B9501650D6E46A (captured from bfc3a18)
+  docs/perf/sql/B1b.sql sha256 82B629B37AA2D4E20EA29D860B74051ECCED50554D7353B2541F8A3196825616 (captured from bfc3a18)
+  docs/perf/sql/B1c.sql sha256 B1821BE0D6AC24C7C27162C78351CE381E330087DF3087A7F400F04892B3BBE2 (captured from bfc3a18)
+  docs/perf/sql/B1d.sql sha256 D6C46366C45989769D1C832E7D3859B2363067EB4478EA03C7B3ECF6153ECB0C (captured from bfc3a18)
+  docs/perf/sql/B1e.sql sha256 D829FB6A7C9E9D564E1C66281D6128231C09A8D6836AB264D5503AB22B83D2C3 (captured from 9db54a1)
+  docs/perf/sql/B1f.sql sha256 62E8CDC3EC2B618B2BFA7BA21D0A7605BD5B6352E3E83CEB4499EE76366E9DF8 (captured from 9db54a1)
+  docs/perf/sql/B2.sql sha256 D047A470F3574C0BA7A414F6C8090A1402BA12B7D88CFE46300C6CC4FAB71E33 (captured from bfc3a18)

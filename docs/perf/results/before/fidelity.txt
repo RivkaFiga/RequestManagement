@@ -1,0 +1,46 @@
+T-501 - plan fidelity, phase 'before' (docs/perf/DEVIATIONS.md, deviation B)
+Captured: 2026-10-27T17:01:55 local time by run-sql.ps1. HEAD cd58ab230f9c5f88a08c5d1f7ddc00b980274255.
+Timings come from executions with STATISTICS XML off; the .sqlplan comes from one more execution with XML on. The plan is accepted as the plan of the timed runs only if the plan cache holds exactly one query_plan_hash for the statement and it equals the QueryPlanHash of the saved plan.
+Fields per statement: verdict, xml_plan_hash, then one line per hash in the plan cache: hash | executions | first compiled | last executed.
+
+B1a.count : verdict=STABLE ; xml_plan_hash=0x4FE1EC1855E1015D
+   0x4FE1EC1855E1015D | 13 | 2026-10-27T14:41:36.080 | 2026-10-27T15:01:56.813
+
+B1a.data : verdict=STABLE ; xml_plan_hash=0x9A9F166E4A8D3F84
+   0x9A9F166E4A8D3F84 | 7 | 2026-10-27T15:01:57.820 | 2026-10-27T15:01:58.930
+
+B1b.count : verdict=STABLE ; xml_plan_hash=0x4FE1EC1855E1015D
+   0x4FE1EC1855E1015D | 20 | 2026-10-27T14:41:36.080 | 2026-10-27T15:02:00.197
+
+B1b.data : verdict=STABLE ; xml_plan_hash=0x2CB7B89315D266BA
+   0x2CB7B89315D266BA | 7 | 2026-10-27T15:02:00.590 | 2026-10-27T15:02:02.133
+
+B1c.count : verdict=STABLE ; xml_plan_hash=0x4FE1EC1855E1015D
+   0x4FE1EC1855E1015D | 7 | 2026-10-27T15:02:02.563 | 2026-10-27T15:02:03.747
+
+B1c.data : verdict=STABLE ; xml_plan_hash=0x9A9F166E4A8D3F84
+   0x9A9F166E4A8D3F84 | 7 | 2026-10-27T15:02:04.170 | 2026-10-27T15:02:05.333
+
+B1d.count : verdict=STABLE ; xml_plan_hash=0x4FE1EC1855E1015D
+   0x4FE1EC1855E1015D | 34 | 2026-10-27T14:41:36.080 | 2026-10-27T15:02:06.423
+
+B1d.data : verdict=STABLE ; xml_plan_hash=0x541061801F4F7709
+   0x541061801F4F7709 | 7 | 2026-10-27T15:02:06.847 | 2026-10-27T15:02:07.827
+
+B1e.count : verdict=STABLE ; xml_plan_hash=0x4FE1EC1855E1015D
+   0x4FE1EC1855E1015D | 7 | 2026-10-27T15:02:08.420 | 2026-10-27T15:02:09.413
+
+B1e.data : verdict=STABLE ; xml_plan_hash=0x9A9F166E4A8D3F84
+   0x9A9F166E4A8D3F84 | 7 | 2026-10-27T15:02:09.800 | 2026-10-27T15:02:10.590
+
+B1f.count : verdict=STABLE ; xml_plan_hash=0x4FE1EC1855E1015D
+   0x4FE1EC1855E1015D | 7 | 2026-10-27T15:02:11.063 | 2026-10-27T15:02:12
+
+B1f.data : verdict=STABLE ; xml_plan_hash=0x9A9F166E4A8D3F84
+   0x9A9F166E4A8D3F84 | 7 | 2026-10-27T15:02:12.380 | 2026-10-27T15:02:13.307
+
+B2.status : verdict=STABLE ; xml_plan_hash=0x2F7521FF663BDEE2
+   0x2F7521FF663BDEE2 | 7 | 2026-10-27T15:02:13.680 | 2026-10-27T15:02:14.500
+
+B2.priority : verdict=STABLE ; xml_plan_hash=0x2F7521FF663BDEE2
+   0x2F7521FF663BDEE2 | 7 | 2026-10-27T15:02:14.880 | 2026-10-27T15:02:15.820

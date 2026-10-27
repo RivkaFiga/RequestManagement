@@ -1,0 +1,9 @@
+phase,scenario,variant,cache_enabled,request,warmup_calls,measured_calls,ok_calls,failed_calls,http_status,total_count,items_returned,min_ms,p50_ms,p95_ms,max_ms,mean_ms
+after,B1a,default,true,"/api/requests?status=InProgress&priority=High&createdFrom=2026-07-03T00:00:00Z&createdTo=2026-10-01T00:00:00Z&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20",10,100,100,0,200,554,20,14.007,15.905,23.639,31.012,16.910
+after,B1b,default,true,"/api/requests?sortBy=createdAt&sortDirection=desc&page=2500&pageSize=20",10,100,100,0,200,100000,20,104.081,120.213,185.246,257.416,126.854
+after,B1c,default,true,"/api/requests?search=payroll&status=New&page=1&pageSize=20",10,100,100,0,200,767,20,106.743,118.185,153.380,202.826,121.160
+after,B1d,default,true,"/api/requests?sortBy=title&sortDirection=asc&page=1&pageSize=20",10,100,100,0,200,100000,20,66.882,90.612,121.789,162.156,91.633
+after,B1e,default,true,"/api/requests?assignedTo=handler-07&status=InProgress&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20",10,100,100,0,200,505,20,17.348,25.250,34.773,42.760,25.469
+after,B1f,default,true,"/api/requests?organizationName=Aurora&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20",10,100,100,0,200,15874,20,22.741,32.695,45.344,51.965,33.216
+after,B2,cache-on,true,"/api/requests/summary",10,100,100,0,200,100000,0,14.705,21.930,32.507,38.315,23.609
+after,B2,cache-off,false,"/api/requests/summary",10,100,100,0,200,100000,0,36.301,40.012,46.534,58.220,41.110

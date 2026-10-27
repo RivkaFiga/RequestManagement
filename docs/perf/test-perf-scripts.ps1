@@ -134,6 +134,19 @@ try {
     Add-Result 'A' 'all 14 captured statements and 7 requests equal their approved hashes and pass the read-only grammar' ((Get-StopCode { Register-PerfStatements $allFiles }) -eq 'NONE')
     Add-Result 'A' 'a registered statement is the normalised captured text' ((Get-ApprovedStatement 'B1a.count') -ceq (Get-NormalizedSql $b1a.Parts[0].Sql))
     Add-Result 'A' "Invoke-PerfSqlcmd has no parameter that takes SQL text" (-not (Get-Command Invoke-PerfSqlcmd).Parameters.ContainsKey('Sql'))
+
+    # The sqlcmd command line (found by the first live run: "The -h and the -y 0 options are mutually exclusive"). Offline: only the
+    # arguments are built; nothing is started. The password is never an argument.
+    $argsXml = @(Get-PerfSqlcmdArguments -Builder $goodBuilder -File 'q.sql' -Xml -TimeoutSeconds 300)
+    $argsPlain = @(Get-PerfSqlcmdArguments -Builder $goodBuilder -File 'q.sql' -TimeoutSeconds 300)
+    $yIndex = [Array]::IndexOf($argsXml, '-y')
+    Add-Result 'A' 'sqlcmd arguments, XML mode: no -h at all, so -h -1 and -y 0 can never be passed together' (($argsXml -notcontains '-h') -and ($argsXml -notcontains '-1') -and (-not (($argsXml -contains '-h') -and ($argsXml -contains '-y'))))
+    Add-Result 'A' 'sqlcmd arguments, XML mode: -y 0 and -w 65535 are passed, no -W and no -s (the plan must not be cut or reformatted)' (($yIndex -ge 0) -and ($argsXml[$yIndex + 1] -ceq '0') -and ($argsXml -ccontains '-w') -and ($argsXml -ccontains '65535') -and ($argsXml -cnotcontains '-W') -and ($argsXml -cnotcontains '-s'))
+    $hIndex = [Array]::IndexOf($argsPlain, '-h')
+    Add-Result 'A' 'sqlcmd arguments, plain mode: -h -1 -W -s | as before, and no -y' (($hIndex -ge 0) -and ($argsPlain[$hIndex + 1] -ceq '-1') -and ($argsPlain -ccontains '-W') -and ($argsPlain -ccontains '-s') -and ($argsPlain -contains '|') -and ($argsPlain -cnotcontains '-y'))
+    Add-Result 'A' 'sqlcmd arguments, plain mode is exactly the previous command line' (($argsPlain -join ' ') -ceq '-S localhost,1433 -U sa -C -b -d RequestManagement_Perf -t 300 -h -1 -W -s | -i q.sql')
+    Add-Result 'A' 'sqlcmd arguments, both modes: server, user, database, timeout and input file; no password, no -P' ((@($argsXml, $argsPlain) | ForEach-Object { ($_ -contains '-S') -and ($_ -contains '-d') -and ($_ -contains 'RequestManagement_Perf') -and ($_ -contains '-i') -and ($_ -contains '-t') -and ($_ -notcontains '-P') -and (-not (($_ -join ' ').Contains($fake))) }) -notcontains $false)
+    Add-Result 'A' 'sqlcmd arguments: no other place passes -h or -y (the only builder is Get-PerfSqlcmdArguments)' ((@(Select-String -LiteralPath $commonPath -Pattern "'-h'|'-y'" | Where-Object { $_.Line -notmatch '^\s*#' }).Count -eq 1) -and (@(Select-String -LiteralPath $runSql, $measureApi -Pattern "'-h'|'-y'").Count -eq 0))
     Add-Result 'A' 'an unregistered statement id is refused' ((Get-StopCode { Get-ApprovedSql 'StatsRun' 'B9.count' $false }) -eq 'SQL_NOT_APPROVED')
     Add-Result 'A' 'a statement of another scenario part that was never registered is refused' ((Get-StopCode { Get-ApprovedSql 'Fidelity' 'B1a.nothing' $false }) -eq 'SQL_NOT_APPROVED')
 

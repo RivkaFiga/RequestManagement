@@ -2,7 +2,7 @@
 
 | Item | Value |
 |---|---|
-| Document status | Draft v2, reviewed against the assignment PDF. **Implementation has started: Phase 0–1 (foundation, data layer, seeder) is in the repository; Phase 2 is partly implemented (the `Api` project with the search, summary, status-update, history and bulk endpoints exists; only the tasks marked `Done` below were verified). The Angular scaffold (T-301) exists; the rest of Angular, performance and docs do not exist yet.** |
+| Document status | Draft v2, reviewed against the assignment PDF. **Implementation is in the repository: the backend (data layer, seeder, API with search, summary, status update, history and bulk), the Angular app, the performance measurement assets with one live run per phase, and the README. The status of every task is the one in its block in §7; only the tasks marked `Done` were verified against their criteria. Open on 2026-10-27: T-501 to T-503 (11 of the 14 `after` statements are `PLAN_UNSTABLE`), T-603 and T-604 (waiting for a commit), T-605 (publish). The work of 2026-10-27 is not committed.** |
 | Date | 2026-10-20 |
 | Verification (local) | 2026-10-21: `dotnet build .\RequestManagement.sln --no-restore` succeeded. Unit tests 51 passed, 0 failed. Integration tests 8 passed, 0 failed (Docker Testcontainers, SQL Server 2022). `dotnet list .\RequestManagement.sln package --vulnerable --include-transitive`: no vulnerable packages in all five projects. 2026-10-22 (T-205): build 0 warnings, `dotnet format --verify-no-changes` clean, unit tests 124 passed, integration tests 75 passed, 0 failed. 2026-10-22 (T-206): unit tests 127 passed, integration tests 82 passed, 0 failed. 2026-10-22 (T-201, T-202): build 0 warnings, `dotnet format --verify-no-changes` clean, unit tests 165 passed, integration tests 131 passed, 0 failed. The status of every task is the one in its block in §7. |
 | Source of truth | Assignment PDF: Full Stack developer test, level C (6 pages, Hebrew) |
@@ -177,7 +177,7 @@ These are design choices. Infrastructure beyond the bare minimum is justified in
 |---|---|---|---|
 | D1 | **SQL Server 2022** with EF Core and a native `rowversion` column. The development database runs in a Docker container. | `rowversion` is maintained by the database, so concurrency detection is enforced server-side, as the scoring cautions demand. EF Core translates filtering, sorting and paging to SQL. Execution plans are easy to capture. Docker avoids a local SQL Server install. | MongoDB with a manual version field. PostgreSQL with `xmin`. Dapper with hand-written SQL. |
 | D2 | **Bulk update uses Partial Success.** One transaction per item; the response returns an outcome per item. | Requests are independent, so one stale item should not block 99 valid ones. Per-item transactions keep lock duration short. | All-or-Nothing: simpler semantics, but a single conflict forces the user to redo the whole batch. |
-| D3 | **Cache only the global summary.** A concrete `RequestSummaryCache` class built on `IMemoryCache`. 60 s absolute expiration. Invalidated after each commit, with a generation guard (§4.5). | It is read by every user, aggregates 100,000 rows, has a tiny payload, and changes only on status updates, so the invalidation points are well defined. The guard closes a real race in about 10 lines. Redis is only *described*, because R7.5 asks for a description, not an implementation. | Caching list queries: unbounded keys, low hit rate. Redis now: unnecessary infrastructure. |
+| D3 | **Cache only the global summary.** A concrete `RequestSummaryCache` singleton that holds one entry itself (`IMemoryCache` is neither registered nor used; see T-201 and T-208). 60 s expiration, counted by `TimeProvider`. Invalidated after each commit, with a generation guard (§4.5). | It is read by every user, aggregates 100,000 rows, has a tiny payload, and changes only on status updates, so the invalidation points are well defined. The guard closes a real race in about 10 lines. Redis is only *described*, because R7.5 asks for a description, not an implementation. | Caching list queries: unbounded keys, low hit rate. Redis now: unnecessary infrastructure. |
 | D4 | **Layout: three projects, `Api`, `Core`, `Infrastructure`, plus a thin `Seeder` console.** Interfaces exist only at the Api→Infrastructure service boundary. | Layering is scored (R0.1). The seeding logic lives in `Infrastructure`, so the test fixture can reuse it, and the console lets it run independently of the API. No generic repository, mediator or CQRS. | A single project: weaker layering. Clean Architecture with 5+ projects: over-engineering. |
 | D5 | **Controllers with `[ApiController]`**, validated with DataAnnotations, `IValidatableObject` and explicit enum checks. | Built-in automatic 400 `ValidationProblemDetails`, no extra packages, one validation mechanism. | Minimal APIs with filters. FluentValidation. |
 | D6 | **The `rowVersion` concurrency token (base64) travels in the request body.** | Easy to send from Angular and Swagger UI. Lets the server return the 409 the PDF requires. | `If-Match` with 412: idiomatic HTTP, but 412 is not the 409 the PDF names. |
@@ -202,7 +202,7 @@ request-management/
 │  ├─ src/ RequestManagement.Api | .Core | .Infrastructure | .Seeder
 │  └─ tests/ RequestManagement.UnitTests | .IntegrationTests
 ├─ frontend/                     Angular app
-├─ docs/  WORK_PLAN.md, PERFORMANCE.md, perf/ (sql/, scripts, results/)
+├─ docs/  WORK_PLAN.md, verification-log.md, perf/ (PERFORMANCE.md, sql/, scripts, results/)
 ├─ docker-compose.yml            SQL Server
 └─ README.md
 ```
@@ -218,7 +218,6 @@ request-management/
 |---|---|
 | `AppDbContext` | Scoped |
 | Request services | Scoped |
-| `IMemoryCache` | Singleton |
 | `RequestSummaryCache` | Singleton (thread-safe) |
 | `TimeProvider` | Singleton (`TimeProvider.System`) |
 | `StatusTransitionPolicy` | Singleton (stateless) |
@@ -306,6 +305,21 @@ Enums are serialised as strings. A 409 response includes `currentStatus` and `cu
 
 Indexes for sorting by `Title` or `UpdatedAt` are added only if B1d or a measurement justifies them.
 
+**Scenario and operation to index (T-101 review, 2026-10-27).** Every operation of the list endpoint and of the summary has an intended index or an *accepted scan*. This is the design intent; the evidence that each index is used is in `PERFORMANCE.md` section 9, and none of it is an isolated measured benefit.
+
+| Operation / scenario | Intended index or accepted scan |
+|---|---|
+| Filter `status` (+ default sort `createdAt` desc) (B1a) | `IX_Requests_Status_CreatedAt`; `Priority` is an included column, so a `priority` filter combined with `status` is a residual predicate |
+| Filter `priority` alone | Accepted: no leading-key index (low cardinality, three values); `IX_Requests_Priority_Status` can serve it as a narrow scan |
+| Filter `assignedTo` (+ `status`) (B1e) | `IX_Requests_AssignedTo_Status_CreatedAt` |
+| Filter `organizationName` starts-with (B1f) | `IX_Requests_OrganizationName_CreatedAt` (`LIKE 'x%'` can seek) |
+| Date range on `createdAt`, default sort, deep page (B1b) | `IX_Requests_CreatedAt_Id` |
+| Search, contains on `Title` / `OrganizationName` (B1c) | Accepted scan (A5, hypothesis H1): a leading-wildcard `LIKE` cannot seek; bounded by the 2-character minimum and by combining with the other filters |
+| Sort by `title` (B1d) | Accepted scan and sort for now; an index only if B1d justifies it (§5.5) |
+| Sort by `updatedAt`, `priority`, `status` | Accepted sort: no dedicated index (low-cardinality or rarely used keys); `Id` is the tie-breaker |
+| Count by status, count by priority (B2) | `IX_Requests_Status_CreatedAt` and `IX_Requests_Priority_Status` (narrow scans); the result is also cached (D3) |
+| History of one request | `IX_RequestStatusHistory_RequestId_ChangedAt` (created in `InitialCreate`) |
+
 **Seeding (D10).** The seeding logic generates:
 - about 2,000 organizations and about 50 handlers, with about 15% of requests unassigned;
 - skewed Status and Priority distributions;
@@ -379,7 +393,7 @@ The Angular dev server proxies `/api` to the backend.
 
 ## 5. Performance Measurement Plan (reproducible)
 
-No results exist yet. Every number in `PERFORMANCE.md` must come from a file in `docs/perf/results/`.
+Results of the live run of 2026-10-27 (one run per phase) are in `docs/perf/results/`. Every number in `PERFORMANCE.md` must come from a file there.
 
 ### 5.1 Scenarios
 
@@ -400,7 +414,7 @@ B1 (the main list query) and B2 (the aggregation) are the two central operations
 B1e and B1f were added (2026-10-27, approved by the project owner) so that each of the indexes `IX_Requests_AssignedTo_Status_CreatedAt` and `IX_Requests_OrganizationName_CreatedAt` is exercised by one scenario; without them §5.4 could not decide whether those two indexes stay. Their SQL is captured the same way as the others (commit `9db54a1`; the query-shaping sources are identical to the commit of the other files).
 
 ### 5.2 Procedure
-1. Run `Seeder --reset --count 100000`. This applies all migrations. Save the row count and checksum to `results/dataset.txt`.
+1. Create the dataset. *As run (2026-10-23, deviation D in `docs/perf/DEVIATIONS.md`):* `docs/perf/run-seeder.ps1 -Mode Execute`, which runs the Seeder with `--create-new --expect-server localhost,1433 --expect-database RequestManagement_Perf --count 100000 --seed 20261020 --batch-size 10000` against the dedicated database `RequestManagement_Perf`. `--create-new` creates the database, applies all migrations and refuses an existing database; `--reset` drops the database and is never used on the performance database, so `Seeder --reset --count 100000` is the equivalent for a throw-away database only (same seed, count and checksum). The row count, the checksum (`-1953119262`) and the distributions are in `results/dataset.txt`. `results/seeder-run.txt` was not created (the wrapper stopped after the Seeder finished, because of a variable-name defect that was then fixed); `dataset.txt` records the console output of the run and the independent `sqlcmd` verification instead.
 2. **Before:** run `docs/perf/set-index-state.ps1 -Action RemoveIndexes -Execute ...` (guarded: snapshot, approval code and a typed confirmation), which runs `dotnet ef database update InitialCreate` and removes `AddQueryIndexes`. Save the `sys.indexes` listing to `results/before/indexes.txt`.
 3. Run `docs/perf/run-sql.ps1 -Phase before`. For each `docs/perf/sql/<scenario>.sql` (both the data query and the count query), it runs 1 warm-up and 5 measured executions via `sqlcmd` with `SET STATISTICS IO, TIME ON` and XML off (serialising the plan would inflate CPU and elapsed time), then one extra execution with `SET STATISTICS XML ON` that is used only for the plan. `query_plan_hash` must be equal in all executions of a statement (`fidelity.txt`); see `docs/perf/DEVIATIONS.md`.
 4. Run `docs/perf/measure-api.ps1 -Phase before` against the API in the Release configuration, with logging at Warning. It makes 10 warm-up calls and then 100 sequential calls per scenario, writing a CSV of per-call timings and p50/p95.
@@ -477,12 +491,12 @@ The EF InMemory provider and SQLite are not used (D11).
 
 ## 7. Work Breakdown
 
-Tasks T-001, T-002, T-003, T-101, T-102, T-602, T-603 and T-604 are **In Progress** (code written, verification items remaining). T-103, T-104, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208, T-301, T-303, T-304, T-305, T-306, T-307, T-401, T-402, T-403, T-404, T-405, T-406 and T-601 are **Done**. Every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
+Tasks T-501, T-502, T-503, T-603 and T-604 are **In Progress** (code written, verification items remaining). T-001, T-002, T-003, T-101, T-102, T-602, T-103, T-104, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208, T-301, T-302, T-303, T-304, T-305, T-306, T-307, T-401, T-402, T-403, T-404, T-405, T-406 and T-601 are **Done**. Every other task is **Planned**. Each task block lists its description, deliverable, related requirements, dependencies, estimate, acceptance criteria and verification method.
 
 ### Phase 0: Foundation (3.0 h)
 
 **T-001: Verify the toolchain and pin versions.**
-- Estimate: 0.5 h · Status: In Progress (code written 2026-10-20; verified locally 2026-10-21: build, 51 unit and 8 integration tests pass, no vulnerable packages; remaining: Docker with Linux containers confirmed via Testcontainers; version table and pins still to be recorded)
+- Estimate: 0.5 h · Status: Done (evidence, 2026-10-27, not yet committed. **Versions on the Windows host** (`dotnet --list-sdks`, `node -v`, `npm -v`, `docker version`, read in this check): .NET SDK 10.0.402 (older 6.0.416, 8.0.302 and 8.0.303 are also installed), Node v22.22.0, npm 11.8.0, Docker server 29.6.1 on `linux` (Linux containers); Angular `^21.2.0` from `frontend/package.json` (`ng version` was not run separately). **Pins:** `backend/global.json` (SDK 10.0.100, `rollForward: latestFeature`), `backend/.config/dotnet-tools.json` (`dotnet-ef` 10.0.0), `frontend/package.json` (`packageManager: npm@10.9.4`), `.nvmrc` (22.22.0, added in this check; the deliverable names it). **Version table:** README "Prerequisites". **Docker answer:** available with Linux containers; the integration tests start their own SQL Server 2022 container through Testcontainers (133 passed, `docs/verification-log.md` Part 1 step 5), so the Docker path of D11 is the default and `TEST_SQL_CONNECTION` stays the documented alternative. **ASCII path (F3):** README tip; the T-604 clean clone ran in `C:\rmc-t604\repo`.)
 - **Description:** On the Windows host, run `dotnet --list-sdks`, `node -v`, `npm -v`, `ng version` and `docker version`. Confirm Linux-container mode. Decide on an ASCII work path (F3).
 - **Deliverable:** A version table for the README, `global.json`, `.nvmrc`, and a recorded answer on Docker availability, which selects the default dev/test database path (D11).
 - **Requirements:** R11.2. Resolves A12.
@@ -491,7 +505,7 @@ Tasks T-001, T-002, T-003, T-101, T-102, T-602, T-603 and T-604 are **In Progres
 - **Verification:** Command output saved to the README draft.
 
 **T-002: Repository and solution scaffold.**
-- Estimate: 1.5 h · Status: In Progress (code written 2026-10-20; verified locally 2026-10-21: build, 51 unit and 8 integration tests pass, no vulnerable packages; first commit `37c3e5a` exists on `origin/main`; remaining: 0-warnings check and `dotnet format --verify-no-changes` still pending)
+- Estimate: 1.5 h · Status: Done (evidence: first commit `37c3e5a` is an ancestor of `origin/main`; `backend/Directory.Build.props` sets `Nullable` enable and `TreatWarningsAsErrors` true; `backend/.config/dotnet-tools.json` has `dotnet-ef` 10.0.0; the projects and references of §4.1 exist (checked under T-603 QC-1). **The two criteria that were pending:** `dotnet build` 0 warnings and `dotnet format --verify-no-changes` clean are recorded on 2026-10-22 (T-205), on 2026-10-27 (T-603 QC-2: `dotnet format RequestManagement.sln --verify-no-changes --no-restore` exit 0) and in the clean clone of `9db54a1` (`docs/verification-log.md` Part 1 steps 2 and 3: 0 warnings, 0 errors, format exit 0). `git diff --stat 9db54a1 HEAD -- backend/src` is empty, so that clone verified the code of the current `HEAD`. Not re-run in this check.)
 - **Description:**
   - `git init` and the GitHub remote.
   - `.gitignore`, `.editorconfig`, and `Directory.Build.props` (nullable on, warnings as errors).
@@ -505,7 +519,7 @@ Tasks T-001, T-002, T-003, T-101, T-102, T-602, T-603 and T-604 are **In Progres
 - **Verification:** The build and format output.
 
 **T-003: Local database environment.**
-- Estimate: 1.0 h · Status: In Progress (code written 2026-10-20; verified locally 2026-10-21: build, 51 unit and 8 integration tests pass, no vulnerable packages; remaining: SQL Server 2022 container works via Testcontainers; `docker-compose.yml` health check and `sqlcmd` connection test still pending)
+- Estimate: 1.0 h · Status: Done (evidence: `docker-compose.yml` runs `mcr.microsoft.com/mssql/server:2022-latest` with a volume and a health check that itself connects with `sqlcmd` (`SELECT 1`); `docs/verification-log.md` Part 2 step 11: `docker compose up -d` on the clone, "healthy after about 20 s", and the isolation re-check shows the development container `request-management-sql` "Up 3 hours (healthy)". Connection test: the Seeder, `dotnet ef database update` and `GET /api/requests/summary` (total 100,000) all connected to the compose database (log steps 12 to 14), and the integration tests use a Testcontainers SQL Server 2022 (133 passed). `.env.example` exists with a placeholder password; `.env` is git-ignored and `git ls-files` lists no `.env`. The non-Docker connection string path is documented in the README (T-601). A separate manual `sqlcmd` call was not made; the health check and the three connected tools are the evidence.)
 - **Description:** `docker-compose.yml` with SQL Server 2022, a health check and a volume, plus `.env.example`. The connection string comes from user-secrets or an environment variable. The non-Docker connection string (SQL Express or LocalDB) is documented.
 - **Deliverable:** A working database.
 - **Requirements:** R0.4, RS.2.
@@ -516,7 +530,7 @@ Tasks T-001, T-002, T-003, T-101, T-102, T-602, T-603 and T-604 are **In Progres
 ### Phase 1: Data design and seeding (7.0 h)
 
 **T-101: Data model and index design (non-coding).**
-- Estimate: 1.5 h · Status: In Progress (code written 2026-10-20; verified locally 2026-10-21: build, 51 unit and 8 integration tests pass, no vulnerable packages; remaining: model and index tests pass; review against §5.1 still pending)
+- Estimate: 1.5 h · Status: Done (evidence, 2026-10-27. **Review against §5.1:** every filter, sort and aggregation, and every scenario B1a to B2, now maps to an intended index or an accepted scan in the new table in §4.3 ("Scenario and operation to index"). The five indexes in `RequestConfiguration.cs` match the §4.3 index table column for column (key order, sort direction, `INCLUDE (Priority)`), and `AddQueryIndexes` creates them (T-103). **Model and index tests:** `AppDbContextModelTests` 7 of 7 and the schema inspection of every migration step are recorded under T-103; the later full runs (188 unit, 133 integration) include them. **Index rationale for `PERFORMANCE.md`:** exists as its section 9 (evidence of use per index, with the plan-stability limitation of section 7). The table is design intent, not a measured benefit.)
 - **Description:** Finalise §4.3. Map every filter, sort and aggregation to an index, or explicitly accept a scan. Confirm A1, A3 and A5–A7.
 - **Deliverable:** An updated §4.3 and the index rationale draft for `PERFORMANCE.md`.
 - **Requirements:** R0.2, R1.10, R6.3, R9.6.
@@ -525,7 +539,7 @@ Tasks T-001, T-002, T-003, T-101, T-102, T-602, T-603 and T-604 are **In Progres
 - **Verification:** Review against §2 and §5.1.
 
 **T-102: Domain model and transition policy.**
-- Estimate: 1.0 h · Status: In Progress (code written 2026-10-20; verified locally 2026-10-21: build, 51 unit and 8 integration tests pass, no vulnerable packages; remaining: UT-1 passes; review of the policy as the single source of rules still pending)
+- Estimate: 1.0 h · Status: Done (evidence, 2026-10-27, read against the working tree. **UT-1:** `StatusTransitionPolicyTests.CanTransition_MatchesTheDefinedRules` has one `InlineData` per pair, 16 in all, plus `UndefinedStatus_HasNoAllowedTransitions`; it is part of the 188 unit tests that passed in the clean clone (`docs/verification-log.md` Part 1 step 4). **Single source:** the rules exist only in `Core/Domain/StatusTransitionPolicy.cs` (a stateless, pure class with a static table). `RequestStatusService` (lines 108 and 162) and `RequestRow.ToDto` call the policy; a search of `backend/src` finds no other place that spells out a transition; the Angular `StatusChangeComponent` offers only the `allowedNextStatuses` the API returns (line 108) and has no copy of the rules. The tests were not re-run in this check.)
 - **Description:** Entities, enums and `StatusTransitionPolicy` (A1) in `Core`.
 - **Deliverable:** The `Core` types.
 - **Requirements:** R0.2, R2.2.
@@ -753,7 +767,7 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 ### Phase 5: Performance (5.5 h)
 
 **T-501: Measurement assets and baseline.**
-- Estimate: 2.0 h · Status: Planned
+- Estimate: 2.0 h · Status: In Progress (2026-10-27, nothing below is committed yet. **Done so far:** the scripts (`run-sql.ps1`, `measure-api.ps1`, `perf-common.ps1`, the guard and the index-state procedure) and the captured SQL for B1a to B1f and B2 are committed (`d2282e1`, with the `sqlcmd` argument fix in `cd58ab2`); `results/dataset.txt`, `results/environment.txt` and `results/before/` (27 files: 7 `stats.txt`, 14 `.sqlplan`, `indexes.txt`, `dataset-check.txt`, `fidelity.txt`, `api.csv`, `api-calls.csv`, `api-run.txt`) exist from the live run on commit `cd58ab2`. In `before` all 14 statements are `STABLE`. The acceptance criterion (every scenario has stats files, plans and API rows) is met for `before`. **Deviation D reconciled (2026-10-27):** §5.2 step 1 now states what was run (`--create-new` via `run-seeder.ps1`) and that `results/seeder-run.txt` does not exist; `dataset.txt` is the record. **Remaining:** the results are untracked, not committed; T-501 can be marked Done once they are committed, because its own acceptance criterion (stats files, plans and API rows for every scenario) is met for `before`.)
 - **Description:**
   - Capture the SQL for B1a to B1f and B2 into `docs/perf/sql/`, recording the commit hash.
   - Write `run-sql.ps1` and `measure-api.ps1`.
@@ -765,7 +779,7 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 - **Verification:** The file listing.
 
 **T-502: Index tuning and the "after" measurement.**
-- Estimate: 2.0 h · Status: Planned
+- Estimate: 2.0 h · Status: In Progress (2026-10-27, not committed. **Done so far:** the five indexes were restored with `set-index-state.ps1` and the state was verified against the snapshot; `results/after/` has the same 27 files as `before`; the returned row counts are identical between the phases; `docs/perf/PERFORMANCE.md` compares the phases. **Criterion not met:** "each remaining index is justified under §5.4". In `after` only 3 of 14 statements are `STABLE`; 11 are `PLAN_UNSTABLE`, which §5.4 does not accept as a valid before/after comparison. By decision of the project owner the plan cache was not cleared and the measurement was not repeated, and the markings were left as saved. `AddQueryIndexes` was not changed and no index was measured on its own, so no index has been confirmed or dropped on measured benefit. **Remaining:** the explicit decision per index, either with a valid comparison (a repeated `after` with a cleared plan cache) or by accepting the limited evidence in `PERFORMANCE.md` section 9.)
 - **Description:** Run step 5 of §5.2. Apply the comparison rules in §5.4, and adjust `AddQueryIndexes` (dropping indexes that don't help), re-measuring after each change.
 - **Deliverable:** The final `AddQueryIndexes` migration and `results/after/`.
 - **Requirements:** R6.1–R6.5.
@@ -774,8 +788,8 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 - **Verification:** A diff of the before and after files.
 
 **T-503: Performance report.**
-- Estimate: 1.5 h · Status: Planned
-- **Description:** Write `docs/PERFORMANCE.md`:
+- Estimate: 1.5 h · Status: In Progress (2026-10-27, not committed. **Done so far:** `docs/perf/PERFORMANCE.md` is written from the result files (scenarios and environment, before/after tables of API p50/p95, logical reads, CPU, elapsed and plan shape, the exceptions B1b, B1c and B1d, B2 with the cache on and off, the index evidence, how full loading is avoided, bottlenecks and improvements). It was generated from `results/` and cross-checked by an independent script: 54 checks passed, covering the API table, the SQL table, the fidelity table, the page counts, the dataset checks and the typed prose numbers. The `PLAN_UNSTABLE` markings are shown as saved, with the observation of two hashes in the plan cache as a possible explanation, not as proof. Hypotheses: H1 supported, H2 not tested, H3 not supported, H4 supported with the fidelity limitation. **Not met:** "H1 to H4, each resolved" (H2 needs a measurement at other offsets) and, through T-502, the validity of the `after` comparison. **Remaining:** H2, the T-502 decision, and a commit.)
+- **Description:** Write `docs/perf/PERFORMANCE.md` (the path used in the repository):
   - the scenarios and the environment;
   - before/after tables built only from the saved artifacts;
   - plan observations and the index rationale;
@@ -804,7 +818,7 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 - **Verification:** T-604.
 
 **T-602: Design documentation.**
-- Estimate: 2.0 h · Status: In Progress (2026-10-27, not committed. Written in `README.md`: "Design notes" (database choice and how loading everything into memory is avoided, concurrency and bulk with the sample bodies already under "API endpoints", cache, invalidation and the multi-instance description, two decisions D1 and D2 with alternatives, known limitations and improvements including the `UserSecretsId`, Docker and OpenAPI findings of T-604) and "AI usage" (areas, checks, the T-603 review notes). Assumptions stay in §3.2 and the README links to them. **Remaining:** (1) the link to `docs/PERFORMANCE.md` and any performance statement need T-503, which is Planned (the README says the indexes are unmeasured hypotheses); (2) the "AI usage" section lists no changes made by hand, because the repository does not record them, and the author must add them (R11.9); (3) the §11 checklist, which is the stated verification, has not been run. Not Done until these three are closed.)
+- Estimate: 2.0 h · Status: Done (evidence, 2026-10-27, not committed; the closing update is at the end of this block. Written in `README.md`: "Design notes" (database choice and how loading everything into memory is avoided, concurrency and bulk with the sample bodies already under "API endpoints", cache, invalidation and the multi-instance description, two decisions D1 and D2 with alternatives, known limitations and improvements including the `UserSecretsId`, Docker and OpenAPI findings of T-604) and "AI usage" (areas, checks, the T-603 review notes). Assumptions stay in §3.2 and the README links to them. **Closing update 2026-10-27:** (1) the README links `docs/perf/PERFORMANCE.md` and states the measurement and its `PLAN_UNSTABLE` limitation without quoting numbers; it will need no change if T-503 ends with a repeated `after` phase except for the sentences that describe the limitation. (2) R11.9: the README "AI usage" section has an "The author's part" paragraph limited to what is confirmed or recorded: the author describes their part as reviewing the AI's work (the author's answer in chat was "reviewed only"), and the paragraph lists the author's decisions that the repository records (the approvals, deviation E, and not repeating the `after` measurement). It deliberately makes no claim about whether the author wrote or edited anything by hand, because that was not confirmed in those words; one question to the author about it is still open and, if answered, the paragraph may be extended. (3) the §11 checklist was gone through against existing evidence (see §11; 23 items ticked, 5 left open with reasons). The acceptance criterion, that every item from R11.4 to R11.9 is present, is met. T-602 depends on T-503, which is still In Progress; this task does not claim T-503's completeness, only that the documentation states its limitation.)
 - **Description:** README sections covering:
   - the database and indexes (D1, linking to `PERFORMANCE.md`);
   - concurrency and bulk behaviour, with sample request and response bodies;
@@ -842,7 +856,7 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 - **Verification:** The checklist with notes, committed.
 
 **T-604: Clean-clone end-to-end verification.**
-- Estimate: 1.5 h · Status: In Progress (2026-10-27, not committed; log: `docs/verification-log.md`. Clean clone of commit `9db54a1` at `C:\rmc-t604\repo` (ASCII path); the working copy was clean at the start. **Passed in the clone:** `dotnet tool restore`, `dotnet build` (0 warnings), `dotnet format --verify-no-changes`, unit tests 188, integration tests 133 (Testcontainers), `npm ci`, `npm test -- --watch=false` 62, `npm run lint`, `ng build`; then, on a separate temporary SQL Server instance (`rm-t604-sql`, port 14331, volume `rmc-t604_sqlserver-data`, database `RequestManagement_T604`, random password in the git-ignored clone `.env`): `dotnet ef database update` (both migrations), the Seeder (`--count 100000` with `--expect-server` and `--expect-database`, checksum -1953119262, equal to the existing database), the API and `npm start`; **smoke checks S-1 to S-7 all passed** in the browser pane and Swagger UI (S-4: 409 message, no retry, row reloads; S-7: Updated, NotFound, Conflict, InvalidTransition in one call). The existing `request-management-sql` and the database `RequestManagement` were compared before and after with the same read-only query: identical. **Why not Done:** (1) T-602 and T-603 are not Done (T-601 now is); (2) the log is not committed, and the verification is "the committed log"; (3) the README now documents the deviations and the two gaps (second-instance recipe, shared `UserSecretsId`, Seeder guards, `--no-launch-profile`), but those paragraphs were not re-followed, so "no undocumented action" rests on the documentation, not on a second run; no new run is planned unless the reviewer wants one. Also recorded in the README: the OpenAPI schema of the bulk request lists `changes` / `rowVersionBytes` (not fixed). The instance `rm-t604-sql`, its volume and the clone `C:\rmc-t604` were left in place; cleanup needs explicit approval.)
+- Estimate: 1.5 h · Status: In Progress (2026-10-27, not committed; log: `docs/verification-log.md`. Clean clone of commit `9db54a1` at `C:\rmc-t604\repo` (ASCII path); the working copy was clean at the start. **Passed in the clone:** `dotnet tool restore`, `dotnet build` (0 warnings), `dotnet format --verify-no-changes`, unit tests 188, integration tests 133 (Testcontainers), `npm ci`, `npm test -- --watch=false` 62, `npm run lint`, `ng build`; then, on a separate temporary SQL Server instance (`rm-t604-sql`, port 14331, volume `rmc-t604_sqlserver-data`, database `RequestManagement_T604`, random password in the git-ignored clone `.env`): `dotnet ef database update` (both migrations), the Seeder (`--count 100000` with `--expect-server` and `--expect-database`, checksum -1953119262, equal to the existing database), the API and `npm start`; **smoke checks S-1 to S-7 all passed** in the browser pane and Swagger UI (S-4: 409 message, no retry, row reloads; S-7: Updated, NotFound, Conflict, InvalidTransition in one call). The existing `request-management-sql` and the database `RequestManagement` were compared before and after with the same read-only query: identical. **Why not Done:** (1) T-603 is not Done (T-601 and, since the later update on 2026-10-27, T-602 are); (2) the log is not committed, and the verification is "the committed log"; (3) the README now documents the deviations and the two gaps (second-instance recipe, shared `UserSecretsId`, Seeder guards, `--no-launch-profile`), but those paragraphs were not re-followed, so "no undocumented action" rests on the documentation, not on a second run; no new run is planned unless the reviewer wants one. Also recorded in the README: the OpenAPI schema of the bulk request lists `changes` / `rowVersionBytes` (not fixed). The instance `rm-t604-sql`, its volume and the clone `C:\rmc-t604` were left in place; cleanup needs explicit approval.)
 - **Description:** In a fresh clone, follow the README exactly: compose, seed 100,000 rows, start the API and the UI, run all tests, then run these smoke checks:
 
 | Smoke check | What to confirm |
@@ -1030,49 +1044,51 @@ Task-level status is in §7. Requirement rows span several tasks, so none is com
 
 ## 11. Acceptance Checklist (final submission)
 
+*Checklist pass of 2026-10-27 (T-602 verification). Each tick below rests on evidence that already exists (the integration test names in `backend/tests/RequestManagement.IntegrationTests`, the clean-clone log `docs/verification-log.md`, and the task evidence in §7); no test, database command or measurement was run for this pass. Items left unticked say why. Nothing is committed.*
+
 **Data and API**
-- [ ] Migrations create the database. Seeding produces ≥ 100,000 rows with identical checksums across `--reset` runs.
-- [ ] The list endpoint supports server-side paging; combined filters (Status, Priority, OrganizationName, AssignedTo, date range); search on Title and OrganizationName; and sorting on ≥ 3 fields, asc and desc.
-- [ ] Page size is limited and parameters are validated (400). Only DTOs are returned. `CancellationToken` is forwarded.
-- [ ] At least 2 aggregations are returned.
+- [x] Migrations create the database. Seeding produces ≥ 100,000 rows with identical checksums across `--reset` runs. *(Evidence: log steps 12 and 13, 100,000 rows and checksum -1953119262 in the development, performance and T-604 databases, each seeded separately; `ResetAndReseed_IsRepeatable_AndIndependentOfBatchSize`. The performance and T-604 databases were created with `--create-new`, not `--reset`, see deviation D.)*
+- [x] The list endpoint supports server-side paging; combined filters (Status, Priority, OrganizationName, AssignedTo, date range); search on Title and OrganizationName; and sorting on ≥ 3 fields, asc and desc. *(`Filters_MatchTheOracle_Individually_AndCombined`, `Sorting_MatchesTheOracle_WithIdAsTieBreaker`, `Paging_ReturnsExactSlices_AndTotalsAreConsistent`, `CreatedRange_FromIsInclusive_ToIsExclusive`, search tests.)*
+- [x] Page size is limited and parameters are validated (400). Only DTOs are returned. `CancellationToken` is forwarded. *(`InvalidParameters_Return400ProblemDetails_WithAnErrorForTheField`; T-603 QC-3 and QC-5.)*
+- [x] At least 2 aggregations are returned. *(`Summary_MatchesDirectSql_AndAddsUpToTheTotal`: by status and by priority, plus the total.)*
 
 **Status update, concurrency and audit**
-- [ ] A missing request returns 404. An invalid value returns 400. A disallowed transition returns 422.
-- [ ] A competing update returns 409, and the database is unchanged.
-- [ ] `UpdatedAt` and `RowVersion` change together on every successful update.
-- [ ] Each status change writes a history row with RequestId, PreviousStatus, NewStatus, ChangedAt and ChangedBy. The history endpoint works.
-- [ ] Bulk accepts 1–100 items, returns an outcome per item, and the Partial Success reasoning is documented.
+- [x] A missing request returns 404. An invalid value returns 400. A disallowed transition returns 422. *(`MissingRequest_Returns404ProblemDetails`, `InvalidBody_Returns400ProblemDetails_...`, `DisallowedTransition_Returns422_...`.)*
+- [x] A competing update returns 409, and the database is unchanged. *(`StaleRowVersion_Returns409WithTheCurrentState_AndNothingIsChanged`, `TwoParallelUpdatesWithTheSameVersion_ExactlyOneSucceeds_AndOnlyTheWinnerIsRecorded`, `CommitBetweenLoadAndSave_IsDetectedByTheDatabase_AsAConflict_...`; smoke check S-4.)*
+- [x] `UpdatedAt` and `RowVersion` change together on every successful update. *(`Update_Returns200_WithNewVersion_AndExactlyOneCorrectHistoryRow`; the bulk tests assert `UpdatedAt` advances and equals the history `ChangedAt`; `Version_ChangesOnEveryUpdate`.)*
+- [x] Each status change writes a history row with RequestId, PreviousStatus, NewStatus, ChangedAt and ChangedBy. The history endpoint works. *(History tests in `RequestHistoryApiTests`; S-6.)*
+- [x] Bulk accepts 1–100 items, returns an outcome per item, and the Partial Success reasoning is documented. *(`OneHundredItems_AreAccepted_AndAllUpdated`, `OneHundredAndOneItems_Returns400_AndChangesNothing`, `MixedBatch_...`; README "Concurrency and bulk update"; S-7.)*
 
 **Cache**
-- [ ] The summary is cached with an expiration, invalidated after commit, and the choice and the scale-out approach are documented.
+- [x] The summary is cached with an expiration, invalidated after commit, and the choice and the scale-out approach are documented. *(`RepeatedSummary_IsServedFromTheCache_WithoutSendingAnySql`, `TheSummaryExpiresAfterTheConfiguredSeconds_...`, `AfterAPatch_TheVeryNextSummaryShowsTheChange_...`, `AnUpdateCommittedWhileTheSummaryIsBeingComputed_IsNeverHiddenByTheStaleResult`; README "Cache and invalidation".)*
 
 **Angular**
-- [ ] All data operations happen on the server.
-- [ ] Search is debounced, and superseded requests are cancelled.
-- [ ] Loading, empty and error states work.
-- [ ] 409 is handled.
-- [ ] Aggregations and history are shown.
-- [ ] Components and services are separated.
+- [x] All data operations happen on the server. *(Facade and page specs assert the query parameters sent; S-2; plan §4.7 does not use `MatTableDataSource` sorting or paging.)*
+- [x] Search is debounced, and superseded requests are cancelled. *(FE-1: `sends one request per typing pause, with the final text`, `cancels the request in flight when a newer query arrives`; S-1 saw `ERR_ABORTED`.)*
+- [x] Loading, empty and error states work. *(Facade, page and summary specs; S-3.)*
+- [x] 409 is handled. *(`explains a 409, locks the row until the data is reloaded and does not retry`; S-4.)*
+- [x] Aggregations and history are shown. *(`summary-panel.component.spec.ts`, `request-history-dialog.component.spec.ts`; S-5, S-6.)*
+- [x] Components and services are separated. *(T-603 QC-1: only `requests-api.service.ts` injects `HttpClient`.)*
 
 **Performance**
-- [ ] B1 and B2 are measured before and after on 100,000 rows.
-- [ ] Plans and statistics files are saved.
-- [ ] Indexes are justified.
-- [ ] A bottleneck and an improvement are documented.
-- [ ] Every number traces to a file.
+- [ ] B1 and B2 are measured before and after on 100,000 rows. *(Measured once per phase, but 11 of the 14 `after` statements are `PLAN_UNSTABLE`, which §5.4 does not accept as a valid comparison; left unticked on purpose, see T-502 and `PERFORMANCE.md` section 7.)*
+- [x] Plans and statistics files are saved. *(`results/before/` and `results/after/`: 14 plans, 7 stats files, `api.csv`, `fidelity.txt`, `indexes.txt` each; untracked until committed.)*
+- [ ] Indexes are justified. *(Each index is used in a saved `after` plan, `PERFORMANCE.md` section 9, but none was measured on its own; T-502 criterion not met.)*
+- [x] A bottleneck and an improvement are documented. *(`PERFORMANCE.md` section 10; README "Known limitations and possible improvements".)*
+- [x] Every number traces to a file. *(T-503: the report was generated from `results/` and cross-checked by an independent script, 54 checks passed. Not re-run in this pass.)*
 
 **Tests**
-- [ ] ≥ 4 meaningful tests, including integration tests against API + SQL Server covering the happy path, validation and concurrency conflicts.
-- [ ] All tests pass from a clean clone.
+- [x] ≥ 4 meaningful tests, including integration tests against API + SQL Server covering the happy path, validation and concurrency conflicts. *(188 unit and 133 integration tests; the names above.)*
+- [x] All tests pass from a clean clone. *(`docs/verification-log.md` Part 1, clone of `9db54a1`: build 0 warnings, 188 unit, 133 integration, 62 frontend, lint and `ng build`; `git diff --stat 9db54a1 HEAD -- backend/src` is empty.)*
 
 **Documentation**
-- [ ] R11.1–R11.9 are present.
-- [ ] Assumptions A1–A14 are stated.
+- [x] R11.1–R11.9 are present. *(R11.1 to R11.8 are in the README; R11.9 is the README "AI usage" section, including "The author's part", limited to what the author confirmed ("reviewed only") and what the repository records; no claim about hand edits.)*
+- [x] Assumptions A1–A14 are stated. *(§3.2; the README links to it and repeats A1, A3 and A11 where they apply.)*
 
 **Submission**
-- [ ] GitHub link, accessible anonymously. No ZIP or email.
-- [ ] T-604 log committed.
-- [ ] All task statuses updated with evidence; any deviations explained.
+- [ ] GitHub link, accessible anonymously. No ZIP or email. *(Not checked: `git ls-remote` from this machine fails with an SSL certificate error, and `HEAD` is one commit ahead of `origin/feature/request-summary`. T-605.)*
+- [ ] T-604 log committed. *(Not committed.)*
+- [ ] All task statuses updated with evidence; any deviations explained. *(Statuses T-001 to T-003, T-101, T-102 updated on 2026-10-27; T-602 was marked Done with the R11.9 paragraph limited to what is confirmed (see its block); T-501 to T-503, T-603 to T-605 are open, see §7.)*
 
 ---
 

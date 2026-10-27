@@ -1,0 +1,59 @@
+T-501 - plan fidelity, phase 'after' (docs/perf/DEVIATIONS.md, deviation B)
+Captured: 2026-10-27T17:11:22 local time by run-sql.ps1. HEAD cd58ab230f9c5f88a08c5d1f7ddc00b980274255.
+Timings come from executions with STATISTICS XML off; the .sqlplan comes from one more execution with XML on. The plan is accepted as the plan of the timed runs only if the plan cache holds exactly one query_plan_hash for the statement and it equals the QueryPlanHash of the saved plan.
+Fields per statement: verdict, xml_plan_hash, then one line per hash in the plan cache: hash | executions | first compiled | last executed.
+
+B1a.count : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0xCFD6EE123D595684
+   0xCFD6EE123D595684 | 7 | 2026-10-27T15:11:23.340 | 2026-10-27T15:11:24.300
+   0x4FE1EC1855E1015D | 110 | 2026-10-27T15:02:45.103 | 2026-10-27T15:02:50.760
+
+B1a.data : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0x4E378EB9C1952A20
+   0x9A9F166E4A8D3F84 | 110 | 2026-10-27T15:02:45.173 | 2026-10-27T15:02:50.780
+   0x4E378EB9C1952A20 | 7 | 2026-10-27T15:11:24.870 | 2026-10-27T15:11:25.473
+
+B1b.count : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0x47ED2CF251D5C975
+   0xCFD6EE123D595684 | 7 | 2026-10-27T15:11:23.340 | 2026-10-27T15:11:24.300
+   0x4FE1EC1855E1015D | 680 | 2026-10-27T15:02:02.563 | 2026-10-27T15:04:05.450
+   0x47ED2CF251D5C975 | 7 | 2026-10-27T15:11:25.810 | 2026-10-27T15:11:26.420
+
+B1b.data : verdict=STABLE ; xml_plan_hash=0x2CB7B89315D266BA
+   0x2CB7B89315D266BA | 117 | 2026-10-27T15:02:50.953 | 2026-10-27T15:11:28.030
+
+B1c.count : verdict=STABLE ; xml_plan_hash=0x4FE1EC1855E1015D
+   0x4FE1EC1855E1015D | 116 | 2026-10-27T15:03:09.920 | 2026-10-27T15:11:29.663
+
+B1c.data : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0x222F6782248371A1
+   0x9A9F166E4A8D3F84 | 109 | 2026-10-27T15:03:10.030 | 2026-10-27T15:03:34.997
+   0x222F6782248371A1 | 7 | 2026-10-27T15:11:30.080 | 2026-10-27T15:11:30.843
+
+B1d.count : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0x47ED2CF251D5C975
+   0xCFD6EE123D595684 | 7 | 2026-10-27T15:11:23.340 | 2026-10-27T15:11:24.300
+   0x4FE1EC1855E1015D | 680 | 2026-10-27T15:02:08.420 | 2026-10-27T15:11:29.663
+   0x47ED2CF251D5C975 | 14 | 2026-10-27T15:11:25.810 | 2026-10-27T15:11:31.917
+
+B1d.data : verdict=STABLE ; xml_plan_hash=0x541061801F4F7709
+   0x541061801F4F7709 | 117 | 2026-10-27T15:03:35.150 | 2026-10-27T15:11:33.053
+
+B1e.count : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0xDA59A1131EAAFBA7
+   0x4FE1EC1855E1015D | 110 | 2026-10-27T15:03:47.243 | 2026-10-27T15:03:54.340
+   0xDA59A1131EAAFBA7 | 7 | 2026-10-27T15:11:33.403 | 2026-10-27T15:11:33.943
+
+B1e.data : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0x04D753249B1C53E7
+   0x9A9F166E4A8D3F84 | 110 | 2026-10-27T15:03:47.270 | 2026-10-27T15:03:54.357
+   0x04D753249B1C53E7 | 7 | 2026-10-27T15:11:34.260 | 2026-10-27T15:11:34.850
+
+B1f.count : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0x4291189DE21A0670
+   0x4FE1EC1855E1015D | 110 | 2026-10-27T15:03:54.417 | 2026-10-27T15:04:05.450
+   0x4291189DE21A0670 | 7 | 2026-10-27T15:11:35.157 | 2026-10-27T15:11:35.760
+
+B1f.data : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0x222F6782248371A1
+   0x9A9F166E4A8D3F84 | 110 | 2026-10-27T15:03:54.447 | 2026-10-27T15:04:05.477
+   0x222F6782248371A1 | 7 | 2026-10-27T15:11:36.083 | 2026-10-27T15:11:36.747
+
+B2.status : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0x54D254CDEBBCF518
+   0x54D254CDEBBCF518 | 7 | 2026-10-27T15:11:37.053 | 2026-10-27T15:11:37.703
+   0x2F7521FF663BDEE2 | 111 | 2026-10-27T15:04:05.640 | 2026-10-27T15:04:22.047
+
+B2.priority : verdict=PLAN_UNSTABLE (report as "plan unstable", not as a before/after comparison) ; xml_plan_hash=0x6752F80B836463E3
+   0x6752F80B836463E3 | 7 | 2026-10-27T15:11:38.023 | 2026-10-27T15:11:38.690
+   0x2F7521FF663BDEE2 | 111 | 2026-10-27T15:04:05.687 | 2026-10-27T15:04:22.077

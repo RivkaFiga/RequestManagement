@@ -1,0 +1,147 @@
+T-501 - STATISTICS IO / TIME, scenario B1c, phase 'before'
+Captured: 2026-10-27T17:01:55 local time by run-sql.ps1. HEAD cd58ab230f9c5f88a08c5d1f7ddc00b980274255. Database RequestManagement_Perf on localhost,1433.
+sql_file: docs/perf/sql/B1c.sql  sha256: B1821BE0D6AC24C7C27162C78351CE381E330087DF3087A7F400F04892B3BBE2  captured_from_commit: bfc3a18
+request: search=payroll&status=New&page=1&pageSize=20
+Method: per statement 1 warm-up (discarded) and 5 measured executions with STATISTICS IO and TIME on and XML off; medians come from those only. One further execution with XML on is kept under its own heading and is NOT used for any median (deviation B).
+Rule: cpu_ms and elapsed_ms of an execution are the values of the last 'SQL Server Execution Times' block of its output.
+
+== part: count
+rows_returned: 1
+count_value: 767
+result_sha256: 12132CD6767EE325D35883D25C0B7F5E1D142D60D33C563C39CEA29984DCEA57   (hash of the result lines; equal before and after means equal data and order)
+logical_reads.Requests: 2254   runs: 2254,2254,2254,2254,2254   identical_in_all_runs: yes
+cpu_ms.median: 88.0   runs: 103,83,91,88,86
+elapsed_ms.median: 91.0   runs: 103,91,94,91,89
+plan_file: before/B1c.count.sqlplan   xml_plan_hash: 0x4FE1EC1855E1015D   actual_plan_run_time_information: present
+-- verbatim STATISTICS output of the 1 warm-up execution(s), not used for medians
+   warm-up | SQL Server parse and compile time:
+   warm-up |    CPU time = 0 ms, elapsed time = 3 ms.
+   warm-up | Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   warm-up |  SQL Server Execution Times:
+   warm-up |    CPU time = 88 ms,  elapsed time = 87 ms.
+   warm-up |  SQL Server Execution Times:
+   warm-up |    CPU time = 88 ms,  elapsed time = 91 ms.
+-- verbatim STATISTICS output, measured run 1 (XML off)
+   SQL Server parse and compile time:
+      CPU time = 0 ms, elapsed time = 0 ms.
+   Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+    SQL Server Execution Times:
+      CPU time = 95 ms,  elapsed time = 102 ms.
+    SQL Server Execution Times:
+      CPU time = 103 ms,  elapsed time = 103 ms.
+-- verbatim STATISTICS output, measured run 2 (XML off)
+   SQL Server parse and compile time:
+      CPU time = 0 ms, elapsed time = 0 ms.
+   Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+    SQL Server Execution Times:
+      CPU time = 83 ms,  elapsed time = 91 ms.
+    SQL Server Execution Times:
+      CPU time = 83 ms,  elapsed time = 91 ms.
+-- verbatim STATISTICS output, measured run 3 (XML off)
+   SQL Server parse and compile time:
+      CPU time = 0 ms, elapsed time = 0 ms.
+   Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+    SQL Server Execution Times:
+      CPU time = 91 ms,  elapsed time = 94 ms.
+    SQL Server Execution Times:
+      CPU time = 91 ms,  elapsed time = 94 ms.
+-- verbatim STATISTICS output, measured run 4 (XML off)
+   SQL Server parse and compile time:
+      CPU time = 0 ms, elapsed time = 0 ms.
+   Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+    SQL Server Execution Times:
+      CPU time = 88 ms,  elapsed time = 91 ms.
+    SQL Server Execution Times:
+      CPU time = 88 ms,  elapsed time = 91 ms.
+-- verbatim STATISTICS output, measured run 5 (XML off)
+   SQL Server parse and compile time:
+      CPU time = 0 ms, elapsed time = 0 ms.
+   Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+    SQL Server Execution Times:
+      CPU time = 86 ms,  elapsed time = 89 ms.
+    SQL Server Execution Times:
+      CPU time = 86 ms,  elapsed time = 89 ms.
+-- execution with STATISTICS XML on (plan only; its IO and TIME are NOT used for the medians)
+   xml-on |  SQL Server Execution Times:
+   xml-on |    CPU time = 0 ms,  elapsed time = 0 ms.
+   xml-on | SQL Server parse and compile time:
+   xml-on |    CPU time = 0 ms, elapsed time = 0 ms.
+   xml-on | Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   xml-on |  SQL Server Execution Times:
+   xml-on |    CPU time = 94 ms,  elapsed time = 94 ms.
+   xml-on |  SQL Server Execution Times:
+   xml-on |    CPU time = 94 ms,  elapsed time = 94 ms.
+
+== part: data
+rows_returned: 20
+result_sha256: B5C26F4CA04EB220B27CDFF9A60D354DFB9B5F3C5958AC1F0F873A1305DAE9EB   (hash of the result lines; equal before and after means equal data and order)
+logical_reads.Worktable: 0   runs: 0,0,0,0,0   identical_in_all_runs: yes
+logical_reads.Requests: 2254   runs: 2254,2254,2254,2254,2254   identical_in_all_runs: yes
+cpu_ms.median: 83.0   runs: 94,82,83,86,80
+elapsed_ms.median: 92.0   runs: 96,91,92,93,85
+plan_file: before/B1c.data.sqlplan   xml_plan_hash: 0x9A9F166E4A8D3F84   actual_plan_run_time_information: present
+-- verbatim STATISTICS output of the 1 warm-up execution(s), not used for medians
+   warm-up | SQL Server parse and compile time:
+   warm-up |    CPU time = 0 ms, elapsed time = 2 ms.
+   warm-up | Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   warm-up | Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   warm-up |  SQL Server Execution Times:
+   warm-up |    CPU time = 90 ms,  elapsed time = 93 ms.
+   warm-up |  SQL Server Execution Times:
+   warm-up |    CPU time = 93 ms,  elapsed time = 96 ms.
+-- verbatim STATISTICS output, measured run 1 (XML off)
+   SQL Server parse and compile time:
+      CPU time = 0 ms, elapsed time = 0 ms.
+   Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+    SQL Server Execution Times:
+      CPU time = 94 ms,  elapsed time = 96 ms.
+    SQL Server Execution Times:
+      CPU time = 94 ms,  elapsed time = 96 ms.
+-- verbatim STATISTICS output, measured run 2 (XML off)
+   SQL Server parse and compile time:
+      CPU time = 0 ms, elapsed time = 0 ms.
+   Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+    SQL Server Execution Times:
+      CPU time = 82 ms,  elapsed time = 90 ms.
+    SQL Server Execution Times:
+      CPU time = 82 ms,  elapsed time = 91 ms.
+-- verbatim STATISTICS output, measured run 3 (XML off)
+   SQL Server parse and compile time:
+      CPU time = 0 ms, elapsed time = 0 ms.
+   Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+    SQL Server Execution Times:
+      CPU time = 83 ms,  elapsed time = 92 ms.
+    SQL Server Execution Times:
+      CPU time = 83 ms,  elapsed time = 92 ms.
+-- verbatim STATISTICS output, measured run 4 (XML off)
+   SQL Server parse and compile time:
+      CPU time = 0 ms, elapsed time = 0 ms.
+   Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+    SQL Server Execution Times:
+      CPU time = 86 ms,  elapsed time = 93 ms.
+    SQL Server Execution Times:
+      CPU time = 86 ms,  elapsed time = 93 ms.
+-- verbatim STATISTICS output, measured run 5 (XML off)
+   SQL Server parse and compile time:
+      CPU time = 0 ms, elapsed time = 0 ms.
+   Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+    SQL Server Execution Times:
+      CPU time = 80 ms,  elapsed time = 85 ms.
+    SQL Server Execution Times:
+      CPU time = 80 ms,  elapsed time = 85 ms.
+-- execution with STATISTICS XML on (plan only; its IO and TIME are NOT used for the medians)
+   xml-on |  SQL Server Execution Times:
+   xml-on |    CPU time = 0 ms,  elapsed time = 0 ms.
+   xml-on | SQL Server parse and compile time:
+   xml-on |    CPU time = 0 ms, elapsed time = 0 ms.
+   xml-on | Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   xml-on | Table 'Requests'. Scan count 1, logical reads 2254, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+   xml-on |  SQL Server Execution Times:
+   xml-on |    CPU time = 89 ms,  elapsed time = 96 ms.
+   xml-on |  SQL Server Execution Times:
+   xml-on |    CPU time = 89 ms,  elapsed time = 96 ms.
