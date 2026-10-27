@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\RequestManagement.Infrastructure\RequestManagement.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\RequestManagement.Api\RequestManagement.Api.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
