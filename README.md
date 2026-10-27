@@ -4,10 +4,12 @@ Full-stack take-home: .NET backend, SQL Server, Angular frontend.
 The work plan is in [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
 
 > **Status:** the backend (search, summary, status update with optimistic concurrency, history,
-> bulk update, summary cache), the Angular app and their automated tests are implemented.
-> The performance measurement ([`docs/perf/`](docs/perf)) and the design write-up
-> (decisions, limitations, AI usage; plan T-501 to T-503 and T-602) are **not finished yet**, so
-> this README has no performance numbers. Task status and evidence: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
+> bulk update, summary cache), the Angular app and their automated tests are implemented. The README
+> steps were checked in a clean clone, with deviations that are documented in this README and in
+> [`docs/verification-log.md`](docs/verification-log.md) (a second SQL Server instance and port, the
+> connection string from the environment, the Seeder guards, `--no-launch-profile`).
+> The performance measurement ([`docs/perf/`](docs/perf), plan T-501 to T-503) is **not finished**:
+> there is no `docs/PERFORMANCE.md` and this README has no performance numbers. Task status and evidence: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
 
 ## Prerequisites
 
@@ -49,7 +51,7 @@ backend/
 frontend/                              Angular app (standalone components, Angular Material, RxJS)
   src/app/core                         HTTP error interceptor, ApiError
   src/app/requests                     Models, RequestsApiService (the only HttpClient user), list facade, page and presentational components
-docs/                                  WORK_PLAN.md, perf/ (measurement scripts and assets)
+docs/                                  WORK_PLAN.md, verification-log.md (clean-clone check), perf/ (measurement scripts and assets)
 docker-compose.yml                     Development SQL Server 2022
 ```
 
@@ -67,6 +69,20 @@ Copy-Item .env.example .env        # then edit MSSQL_SA_PASSWORD in .env
 docker compose up -d
 docker compose ps                  # wait until the sqlserver service shows "healthy"
 ```
+
+`docker-compose.yml` fixes the container name (`request-management-sql`); only the host port can
+be changed (`MSSQL_PORT` in `.env`, default 1433). If another container already uses that name or
+port (for example a second clone of this repository), either stop it first or start a separate
+instance with its own project name, port and an override file that sets another `container_name`
+(this is how the clean-clone check in the verification log did it):
+
+```powershell
+# docker-compose.second.yml (outside the repository):  services: { sqlserver: { container_name: rm-second-sql } }
+# .env of the second clone: MSSQL_PORT=14331
+docker compose -p rm-second -f docker-compose.yml -f ..\docker-compose.second.yml up -d
+```
+
+Step 7 below uses the default container name; use your own name there if you changed it.
 
 ### 2. Restore tools and build
 
@@ -89,6 +105,15 @@ dotnet user-secrets set "ConnectionStrings:RequestManagement" $cs --project src/
 # For dotnet ef (current PowerShell session only):
 $env:ConnectionStrings__RequestManagement = $cs
 ```
+
+> **Shared user-secrets entry.** The Api and the Seeder projects use the same `UserSecretsId`
+> (`request-management-dev`), and user-secrets live in your Windows profile, so **every clone of
+> this repository on the same account reads and writes the same entry**. A clone that has no
+> `ConnectionStrings__RequestManagement` variable set will use the connection string saved by another
+> clone, that is, it will reach that clone's database (and `--reset` would drop it). When you work
+> with more than one clone or database, do not rely on user-secrets: set
+> `$env:ConnectionStrings__RequestManagement` in the shell (it takes precedence) and use the
+> Seeder guards in [step 5](#5-seed-100000-requests).
 
 ### 4. Apply the migrations
 
@@ -125,6 +150,17 @@ dotnet run --project src/RequestManagement.Seeder -- --count 100000
 
 Without `--reset` the seeder requires a fully migrated, **empty** database. It never appends
 to or overwrites existing data.
+
+Target guards (recommended whenever more than one database or clone exists on the machine):
+
+| Option | Effect |
+|---|---|
+| `--expect-server <s>` and `--expect-database <d>` (always together) | The seeder refuses to run unless the server and database in the connection string are exactly these (case-sensitive). The connection string must then come from the process environment; user-secrets are not used. |
+| `--create-new` (needs both `--expect-*`) | Creates the database, applies the migrations and seeds it. Refuses if the database already exists; never drops anything. Mutually exclusive with `--reset`. |
+
+```powershell
+dotnet run --project src/RequestManagement.Seeder -- --count 100000 --expect-server "localhost,1433" --expect-database "RequestManagement"
+```
 
 ### 6. Reset and regenerate (destructive, development only)
 
@@ -171,6 +207,10 @@ Configuration (`appsettings.json`):
 | `SummaryCache:ExpirationSeconds` | `60` | Absolute expiration of the cached summary (must be greater than 0) |
 
 The summary cache is also invalidated after every committed status change (single or bulk).
+
+`--launch-profile http` also opens your default browser (`launchBrowser: true`). To avoid that, run
+with `--no-launch-profile` and set the two values the profile sets:
+`$env:ASPNETCORE_ENVIRONMENT = "Development"; $env:ASPNETCORE_URLS = "http://localhost:5080"`.
 
 ## Run the UI
 
@@ -332,6 +372,118 @@ Without Docker, point them at an existing SQL Server; they create and drop a uni
 $env:TEST_SQL_CONNECTION = "Server=localhost\SQLEXPRESS;Integrated Security=True;TrustServerCertificate=True"
 dotnet test tests/RequestManagement.IntegrationTests
 ```
+
+## Design notes
+
+### Database choice and how loading everything into memory is avoided
+
+SQL Server 2022 with EF Core and a native `rowversion` column (decision D1): the database maintains
+the concurrency token, so conflict detection is enforced server-side, and EF Core translates
+filtering, sorting and paging to SQL. Every list request is one `WHERE ... ORDER BY ... OFFSET/FETCH`
+query that projects straight into `RequestDto` (no entity is materialised or returned), plus a
+`COUNT` query for `totalCount`; the summary is two `GROUP BY` queries. Nothing filters, sorts or
+pages in application memory, and the Angular app never does either. The indexes and the query patterns
+they serve are in [Indexes and why](#indexes-and-why).
+
+**Not yet measured.** The index choices are the plan's hypotheses. The 100,000-row measurement
+(query plans, logical reads, API latency; plan T-501 to T-503) has not been completed, so this
+README makes no performance claim and there is no `docs/PERFORMANCE.md` yet.
+
+### Concurrency and bulk update
+
+Single and bulk updates share one per-item routine (`RequestStatusService`). The client sends the
+`rowVersion` it last saw; the status `UPDATE ... WHERE Id = @id AND RowVersion = @rv` and the history
+`INSERT` commit in one transaction. Zero affected rows means someone else changed the request, and
+the API returns 409 with the current status and version; nothing is overwritten. The UI shows the
+message, locks the row until reloaded and does not retry on its own. The request/response examples
+are in [API endpoints](#api-endpoints).
+
+Bulk is **Partial Success** (decision D2): requests are independent, so one stale or missing item
+should not force the user to redo 99 valid ones. Each item is applied in its own transaction and the
+response lists `Updated`, `NotFound`, `Conflict` (with the current `rowVersion`) or `InvalidTransition`
+per item, in the order sent. An invalid envelope (0 or more than 100 items, duplicate ids, missing
+fields) is rejected with 400 and changes nothing.
+
+### Cache and invalidation
+
+Only the global summary (counts by status and priority, plus the total) is cached, in a singleton
+`RequestSummaryCache` wrapping a lock and an in-memory entry (it does not use `IMemoryCache`; the plan
+text that mentions `IMemoryCache` is outdated on this point). It is read by every user, aggregates all
+rows, is small, and changes only on a status update, so the invalidation points are exact. Expiry is
+`SummaryCache:ExpirationSeconds` (default 60). The status services call `Invalidate()` after every
+committed single or bulk update. A generation counter stops a read that started before the commit from
+storing its stale counts afterwards. `SummaryCache:Enabled=false` bypasses the cache.
+
+With several server instances an in-memory cache is local to each, so the others would serve stale
+counts until expiry. Described adjustment (not implemented): keep the entry in a shared cache such as
+Redis through `IDistributedCache` and remove it on every update, or use `HybridCache` with Redis as the
+second level and broadcast evictions; the short expiry remains the upper bound of staleness.
+
+### Two technical decisions and their alternatives
+
+1. **SQL Server with `rowversion`** (D1) instead of MongoDB with a hand-maintained version field, PostgreSQL
+   with `xmin`, or Dapper with hand-written SQL. Chosen because the database itself enforces the version
+   check and the plans are easy to inspect.
+2. **Partial-Success bulk with one transaction per item** (D2) instead of All-or-Nothing. All-or-Nothing is
+   simpler to explain but one conflict would fail the whole batch of up to 100; per-item transactions also
+   keep lock time short. The cost is that the client must read the per-item results.
+
+Other decisions and the assumptions about under-specified behaviour (allowed transitions, `ChangedBy`,
+filter semantics, page-size limit) are listed in [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md) §3.
+
+### Known limitations and possible improvements
+
+- **Contains-search is not index-backed.** `search` is a case-insensitive *contains* on title or
+  organization name, which cannot seek on a B-tree index; its cost on 100,000 rows has not been measured
+  (hypothesis H1). Improvement: SQL Server full-text search, or keeping the 2-character minimum together
+  with selective filters. Offset paging may also get slower on very deep pages (H2, unmeasured); keyset
+  pagination is the improvement.
+- **`ChangedBy` is not authenticated.** It is whatever the client sends in `X-User-Name`; there is no
+  authentication or authorisation (out of scope in the plan).
+- **Shared `UserSecretsId`.** The Api and the Seeder share one user-secrets entry for all clones on the
+  same Windows account (see [step 3](#3-configure-the-connection-string-never-committed)). Only the Seeder
+  `--expect-*` guards and the environment variable protect against reaching the wrong database;
+  `docs/perf/guard-perf-target.ps1` protects only the performance database. Not changed in code.
+- **Fixed Docker settings.** `docker-compose.yml` fixes `container_name: request-management-sql`, and the
+  README commands (step 7) use that name; a second instance needs an override file (see step 1).
+- **Bulk request schema in OpenAPI.** The generated OpenAPI document and the Swagger example for
+  `POST /api/requests/bulk-status` also list a `changes` array and a `rowVersionBytes` field per item, which
+  are computed read-only properties of the DTO. The contract that works, and that the tests and the
+  clean-clone check used, is `status` plus `items[] { id, rowVersion }`. Not fixed.
+- **Narrow windows.** At about 800 px the requests table is wider than the viewport and the Update button
+  is clipped; the UI was checked at 1400x900. "Clear filters" leaves the search box as it is.
+- **Dev-tooling advisories.** `npm audit` reports 2 findings (undici through `@angular/build`), not addressed.
+
+## AI usage
+
+AI assistance (Claude Code, a Claude model) was used throughout this project, under the author's
+direction and with the author approving the steps that touched the database or the repository:
+
+| Area | AI-assisted | What was checked |
+|---|---|---|
+| Work plan (`docs/WORK_PLAN.md`) | Drafted and revised with AI; reviewed against the assignment PDF | Requirement catalogue and traceability cross-checked against the PDF; task statuses changed only with recorded evidence |
+| Backend (Core, Infrastructure, Api, Seeder) | Written with AI | Unit tests (188) and integration tests against real SQL Server in Testcontainers (133), including the parallel-update test (IT-4) and error-shape tests; `dotnet format` and a 0-warnings build |
+| Angular app | Written with AI | 62 Vitest tests, Angular lint (ESLint), `ng build`, and browser smoke checks S-1 to S-7 |
+| Performance scripts (`docs/perf/`) | Written with AI | Offline self-tests passed on 2026-10-27: `test-perf-scripts.ps1` 572/572 and `test-guard.ps1` 18/18. They opened no database connection, so they show that the scripts' own logic and guards behave as designed, not that anything was measured. No live run of the scripts and no performance measurement has been done yet (details: `docs/perf/DEVIATIONS.md`) |
+| Documentation (this README, verification log) | Written with AI | Commands compared with `launchSettings.json`, `proxy.conf.json`, `package.json`, the controllers and DTOs, and then followed in a clean clone |
+
+**Code-quality review (T-603).** The AI-written code was read against nine checks (QC-1 to QC-9 in
+`docs/WORK_PLAN.md`), all of which pass: `Core` has no EF or ASP.NET reference and only `requests-api.service.ts`
+injects `HttpClient`; the single and bulk update share one routine and the list filters are written once;
+controllers return only DTOs and ProblemDetails; no `.Result`, `.Wait()` or `async void`, and I/O calls
+forward the `CancellationToken`; a 500 carries no stack trace; the three request types use one validation
+mechanism; logs carry no bodies or connection strings; nothing from the plan's out-of-scope list was added.
+What the review **changed**: Prettier formatting of 20 frontend files that did not satisfy the repository's
+`.prettierrc`, four copies of the error-conversion expression replaced by one `toApiError`, and the missing
+Angular linter (`angular-eslint` 21) added. The `IMemoryCache` mismatch between plan and code was found and is
+recorded, not edited out of the plan.
+
+**Clean-clone verification (T-604).** Every run step and smoke check passed in a fresh clone against a
+separate temporary SQL Server instance; the deviations from the README and the findings are in
+[`docs/verification-log.md`](docs/verification-log.md).
+
+**Changes made by hand by the author: not recorded.** The repository history does not show which edits
+the author made without AI; the author must add that list here before submission.
 
 ## Dependencies and why
 

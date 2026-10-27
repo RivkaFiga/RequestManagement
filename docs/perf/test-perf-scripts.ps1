@@ -84,7 +84,7 @@ function Remove-LinksIn([string]$Root) {
 }
 
 # The names T-502 must reproduce, written out independently of perf-common.ps1.
-$expectedScenarioParts = [ordered]@{ B1a = @('count', 'data'); B1b = @('count', 'data'); B1c = @('count', 'data'); B1d = @('count', 'data'); B2 = @('status', 'priority') }
+$expectedScenarioParts = [ordered]@{ B1a = @('count', 'data'); B1b = @('count', 'data'); B1c = @('count', 'data'); B1d = @('count', 'data'); B1e = @('count', 'data'); B1f = @('count', 'data'); B2 = @('status', 'priority') }
 function Get-ExpectedSqlNames([string]$Phase, [string[]]$Only = @()) {
     $names = @("$Phase/indexes.txt", "$Phase/dataset-check.txt", "$Phase/fidelity.txt")
     foreach ($id in $expectedScenarioParts.Keys) {
@@ -124,10 +124,14 @@ try {
     $b2 = Read-PerfSqlFile 'B2' @('status', 'priority')
     Add-Result 'A' 'B1a request header is the section 5.1 request' ($b1a.Request -ceq 'status=InProgress&priority=High&createdFrom=2026-07-03T00:00:00Z&createdTo=2026-10-01T00:00:00Z&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20')
     Add-Result 'A' 'B1c request header uses the seed term and status=New' ($b1c.Request -ceq 'search=payroll&status=New&page=1&pageSize=20')
+    $b1e = Read-PerfSqlFile 'B1e' @('count', 'data')
+    $b1f = Read-PerfSqlFile 'B1f' @('count', 'data')
+    Add-Result 'A' 'B1e request header is the handler queue: handler-07, InProgress, default sort' ($b1e.Request -ceq 'assignedTo=handler-07&status=InProgress&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20')
+    Add-Result 'A' 'B1f request header is the organization prefix Aurora with the default sort' ($b1f.Request -ceq 'organizationName=Aurora&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20')
 
     $allFiles = Read-AllPerfSqlFiles @($script:PerfScenarios)
-    Add-Result 'A' 'the approved-hash table has 15 entries: 10 statements and 5 requests' ($script:PerfApprovedHashes.Count -eq 15)
-    Add-Result 'A' 'all 10 captured statements and 5 requests equal their approved hashes and pass the read-only grammar' ((Get-StopCode { Register-PerfStatements $allFiles }) -eq 'NONE')
+    Add-Result 'A' 'the approved-hash table has 21 entries: 14 statements and 7 requests' ($script:PerfApprovedHashes.Count -eq 21)
+    Add-Result 'A' 'all 14 captured statements and 7 requests equal their approved hashes and pass the read-only grammar' ((Get-StopCode { Register-PerfStatements $allFiles }) -eq 'NONE')
     Add-Result 'A' 'a registered statement is the normalised captured text' ((Get-ApprovedStatement 'B1a.count') -ceq (Get-NormalizedSql $b1a.Parts[0].Sql))
     Add-Result 'A' "Invoke-PerfSqlcmd has no parameter that takes SQL text" (-not (Get-Command Invoke-PerfSqlcmd).Parameters.ContainsKey('Sql'))
     Add-Result 'A' 'an unregistered statement id is refused' ((Get-StopCode { Get-ApprovedSql 'StatsRun' 'B9.count' $false }) -eq 'SQL_NOT_APPROVED')
@@ -1342,7 +1346,7 @@ public static class T501Fake {
     # B7. measure-api dry run: the calls are the section 5.1 requests, B2 with and without the cache
     $r = Invoke-Script $measureApi @('-Phase', 'before', '-DryRun') $goodCs
     $apiLines = @($r.Output -split "`r?`n" | Where-Object { $_ -match '^PLAN API:' })
-    Add-Result 'B' 'measure-api dry run plans 6 calls: B1a-B1d (default) and B2 cache-on / cache-off' (($apiLines.Count -eq 6) -and $r.Output.Contains("$($script:ApiWarmupCalls) warm-up + $($script:ApiMeasuredCalls) measured"))
+    Add-Result 'B' 'measure-api dry run plans 8 calls: B1a-B1f (default) and B2 cache-on / cache-off' (($apiLines.Count -eq 8) -and $r.Output.Contains("$($script:ApiWarmupCalls) warm-up + $($script:ApiMeasuredCalls) measured"))
     Add-Result 'B' 'measure-api dry run uses the captured B1a and B1c requests' ($r.Output.Contains('GET /api/requests?status=InProgress&priority=High&createdFrom=2026-07-03T00:00:00Z&createdTo=2026-10-01T00:00:00Z&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20') -and $r.Output.Contains('GET /api/requests?search=payroll&status=New&page=1&pageSize=20'))
     Add-Result 'B' 'measure-api dry run uses 10 warm-up and 100 measured calls (section 5.2, step 4)' (($script:ApiWarmupCalls -eq 10) -and ($script:ApiMeasuredCalls -eq 100) -and ($script:SqlWarmupRuns -eq 1) -and ($script:SqlMeasuredRuns -eq 5))
 

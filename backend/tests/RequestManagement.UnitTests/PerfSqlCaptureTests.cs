@@ -15,7 +15,7 @@ using RequestManagement.Infrastructure.Seeding;
 namespace RequestManagement.UnitTests;
 
 /// <summary>
-/// T-501: captures the SQL that EF Core really sends for the measured scenarios B1a to B1d and B2 (work plan §5.1).
+/// T-501: captures the SQL that EF Core really sends for the measured scenarios B1a to B1f and B2 (work plan §5.1).
 /// The real <see cref="RequestQueryService"/> runs; an interceptor records every command (text and parameters) and answers it
 /// with a canned empty result, so no database is contacted. The tests always run and check the shape of the captured SQL
 /// (R6.5). When <c>T501_SQL_OUT</c> names a directory they also write one <c>.sql</c> file per scenario there;
@@ -80,6 +80,33 @@ public class PerfSqlCaptureTests
             }, ct),
             ["count", "data"]),
         new(
+            "B1e",
+            "GET /api/requests, a handler's queue",
+            "assignedTo=handler-07&status=InProgress&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20",
+            (service, ct) => service.SearchAsync(new RequestSearchQuery
+            {
+                AssignedTo = "handler-07",
+                Status = [RequestStatus.InProgress],
+                SortBy = "createdAt",
+                SortDirection = "desc",
+                Page = 1,
+                PageSize = 20,
+            }, ct),
+            ["count", "data"]),
+        new(
+            "B1f",
+            "GET /api/requests, organization starts-with",
+            "organizationName=Aurora&sortBy=createdAt&sortDirection=desc&page=1&pageSize=20",
+            (service, ct) => service.SearchAsync(new RequestSearchQuery
+            {
+                OrganizationName = "Aurora",
+                SortBy = "createdAt",
+                SortDirection = "desc",
+                Page = 1,
+                PageSize = 20,
+            }, ct),
+            ["count", "data"]),
+        new(
             "B2",
             "GET /api/requests/summary",
             "(no parameters; cache miss, so both GROUP BY queries run)",
@@ -139,6 +166,23 @@ public class PerfSqlCaptureTests
         var b1d = captured["B1d"];
         Assert.Contains("ORDER BY [r].[Title], [r].[Id]", b1d[1].Text);
         Assert.DoesNotContain("DESC", b1d[1].Text);
+
+        // B1e: exact AssignedTo plus Status (the handler's queue), default sort; the count has the same WHERE.
+        var b1e = captured["B1e"];
+        Assert.Contains("[AssignedTo]", WhereClause(b1e[0].Text));
+        Assert.Contains("[Status]", WhereClause(b1e[0].Text));
+        Assert.DoesNotContain("LIKE", WhereClause(b1e[0].Text));
+        Assert.Contains(b1e[0].Parameters, p => Equals(p.Value, "handler-07"));
+        Assert.Equal(WhereClause(b1e[1].Text), WhereClause(b1e[0].Text));
+        Assert.Contains("[CreatedAt] DESC, [r].[Id] DESC", b1e[1].Text);
+
+        // B1f: organization starts-with (a trailing wildcard only, so an index on OrganizationName can seek), default sort.
+        var b1f = captured["B1f"];
+        Assert.Contains("[OrganizationName] LIKE", WhereClause(b1f[0].Text));
+        Assert.Contains(b1f[0].Parameters, p => Equals(p.Value, "Aurora%"));
+        Assert.DoesNotContain("[Title]", WhereClause(b1f[0].Text));
+        Assert.Equal(WhereClause(b1f[1].Text), WhereClause(b1f[0].Text));
+        Assert.Contains("[CreatedAt] DESC, [r].[Id] DESC", b1f[1].Text);
 
         // B2: the two server-side GROUP BY queries, nothing else.
         var b2 = captured["B2"];

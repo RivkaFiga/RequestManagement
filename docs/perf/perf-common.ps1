@@ -72,11 +72,13 @@ $script:PerfScenarios = @(
     [pscustomobject]@{ Id = 'B1b'; Parts = @('count', 'data') },
     [pscustomobject]@{ Id = 'B1c'; Parts = @('count', 'data') },
     [pscustomobject]@{ Id = 'B1d'; Parts = @('count', 'data') },
+    [pscustomobject]@{ Id = 'B1e'; Parts = @('count', 'data') },
+    [pscustomobject]@{ Id = 'B1f'; Parts = @('count', 'data') },
     [pscustomobject]@{ Id = 'B2'; Parts = @('status', 'priority') }
 )
 
 # SHA-256 (UTF-8, line breaks as LF, trimmed) of every captured statement and of every '-- request:' line that the scripts
-# may use. Computed from docs/perf/sql at captured commit bfc3a18. Re-capturing the SQL changes these on purpose: review the
+# may use. Computed from docs/perf/sql at captured commit bfc3a18 (B1e and B1f: 9db54a1, query-shaping sources identical). Re-capturing the SQL changes these on purpose: review the
 # new text, then update the values here. (B1b.count and B1d.count are the same statement.)
 $script:PerfApprovedHashes = @{
     'B1a.count'    = '652456D7FC94CB0DDC6DA861EC5433C87D138A84FDDE48411417159010E90B38'
@@ -91,6 +93,12 @@ $script:PerfApprovedHashes = @{
     'B1d.count'    = '7493BFC8249322C3A099F9486970241CE25A9449AA49AE4FFBA6B2BAA8907B17'
     'B1d.data'     = '288CAA4DDA325F308A35D9E3CB5D5C58E4011B82C406B63893FBEDC97BB3254B'
     'B1d.request'  = '5976F682DEB13E2CDE645FA5247D70D6CC7512AA6FAC4D7196EE88E400397817'
+    'B1e.count'    = '919BE75537C448A5C29F8A0EB2DFA1C441B91AA86C4AE05611F193395F84A391'
+    'B1e.data'     = 'D6C23261833B52A9534A4B83D9232398BEC27568E4E1984369D39C36DAC5D5E6'
+    'B1e.request'  = 'E6D0C0D48F70A8EFEF41B8DBCA029656FCD014509AE765BF6CC8FF5C5EA06D26'
+    'B1f.count'    = '12E430EFBC2AEE048B75D0972F5A1436D5D1E09741B1306CA3B19A57A8DA7F9E'
+    'B1f.data'     = 'EBAE5ED250DA49BE35AF142516A9BA947F2EC849E137FCE00F4B7EF47C80F733'
+    'B1f.request'  = '1F0F14F76CD8AADB7563B36C881296FACB5CA0EDB9EDE3D7E8888DD8ED6FD980'
     'B2.status'    = '8C08083732A4511B0B5466958432E7029B8D12A1C5EB8B78FC14D7CD9DEC2A78'
     'B2.priority'  = '794BA0863B2E917BD0DEC20B8A7DAD2FBB3C1F5C8CBE928C06C9F12727616374'
     'B2.request'   = 'B2EFEB3DB0D8CDEBDAB555453F46F8216C4E6C3734500C7446A2436183B4EBE6'

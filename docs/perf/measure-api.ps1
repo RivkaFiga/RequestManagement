@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    T-501 (work plan section 5.2, step 4): measures the API latency of B1a to B1d and B2 against the dedicated performance
+    T-501 (work plan section 5.2, step 4): measures the API latency of B1a to B1f and B2 against the dedicated performance
     database and saves api.csv (p50/p95 per scenario), api-calls.csv (every call) and api-run.txt (how the run was made).
 
 .DESCRIPTION
@@ -13,7 +13,7 @@
     (so an API that is already running, possibly against another database, can never be measured by mistake) and stops the
     API again when it is done.
 
-    B1a to B1d and B2 with the cache run on a first API instance (SummaryCache__Enabled=true). B2 without the cache runs on a
+    B1a to B1f and B2 with the cache run on a first API instance (SummaryCache__Enabled=true). B2 without the cache runs on a
     second instance with SummaryCache__Enabled=false (section 5.1: "cache enabled vs. SummaryCache__Enabled=false").
 
     It never runs the Seeder, never runs dotnet ef, never sends anything but GET requests, and does not write to the database.
@@ -28,7 +28,7 @@
       <Phase>/api.csv        one row per scenario/variant; columns:
                              phase,scenario,variant,cache_enabled,request,warmup_calls,measured_calls,ok_calls,failed_calls,
                              http_status,total_count,items_returned,min_ms,p50_ms,p95_ms,max_ms,mean_ms
-                             variant: 'default' (B1a-B1d), 'cache-on' and 'cache-off' (B2). Times are milliseconds with 3 decimals
+                             variant: 'default' (B1a-B1f), 'cache-on' and 'cache-off' (B2). Times are milliseconds with 3 decimals
                              and a dot; p50/p95 are nearest-rank percentiles of the measured calls (the value at position
                              ceil(p * n) of the sorted times).
       <Phase>/api-calls.csv  one row per measured call: phase,scenario,variant,call_index,http_status,elapsed_ms,bytes,total_count,items_returned
@@ -39,7 +39,7 @@
 .PARAMETER Phase
     'before' or 'after'. Required.
 .PARAMETER Scenario
-    A subset of B1a, B1b, B1c, B1d, B2; only together with a -ResultsRoot other than docs/perf/results.
+    A subset of B1a, B1b, B1c, B1d, B1e, B1f, B2; only together with a -ResultsRoot other than docs/perf/results.
 .PARAMETER Port
     Loopback port for the API instances (default 5190). It must be free.
 .PARAMETER Overwrite
@@ -52,7 +52,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('before', 'after')][string]$Phase,
-    [ValidateSet('B1a', 'B1b', 'B1c', 'B1d', 'B2')][string[]]$Scenario,
+    [ValidateSet('B1a', 'B1b', 'B1c', 'B1d', 'B1e', 'B1f', 'B2')][string[]]$Scenario,
     [string]$ResultsRoot,
     [ValidateRange(1024, 65535)][int]$Port = 5190,
     [int]$ExpectedRowCount = 100000,
@@ -89,7 +89,7 @@ Register-PerfStatements $sqlFiles   # approved hash for every statement and ever
 if (-not (Test-PerfLoopbackUrl $baseUrl $Port)) { Stop-Run 'URL_NOT_LOOPBACK' "The API address '$baseUrl' is not http://127.0.0.1:<port>." }
 $builder = Get-PerfTarget
 
-# The calls: the query string of B1a-B1d is the '-- request:' header of the captured SQL, so the API and the SQL files cannot drift apart.
+# The calls: the query string of B1a-B1f is the '-- request:' header of the captured SQL, so the API and the SQL files cannot drift apart.
 $calls = New-Object System.Collections.Generic.List[object]
 foreach ($scenarioItem in $selected) {
     if ($scenarioItem.Id -eq 'B2') {
