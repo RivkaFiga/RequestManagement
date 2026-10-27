@@ -9,10 +9,11 @@ The work plan is in [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
 > [`docs/verification-log.md`](docs/verification-log.md) (a second SQL Server instance and port, the
 > connection string from the environment, the Seeder guards, `--no-launch-profile`).
 > The performance measurement ([`docs/perf/`](docs/perf), plan T-501 to T-503) was run once per phase
-> and is reported in [`docs/perf/PERFORMANCE.md`](docs/perf/PERFORMANCE.md), **with a stated limitation**:
-> in the `after` phase only 3 of 14 statements were marked plan-stable, so the before/after comparison
-> is not claimed to be fully valid. The tasks T-501 to T-503 are not marked Done. This README quotes no
-> performance numbers. Task status and evidence: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
+> and is reported in [`docs/perf/PERFORMANCE.md`](docs/perf/PERFORMANCE.md), **with stated limitations**:
+> the measurement script marked only 3 of 14 statements plan-stable in the `after` phase (the report explains,
+> from the saved files, why the other 11 markings come from the script's plan-cache lookup), no index was
+> measured on its own, and hypothesis H2 was not tested (it is a limitation, not a finding). This README
+> quotes no performance numbers. Task status and evidence: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
 
 ## Prerequisites
 
@@ -454,10 +455,6 @@ filter semantics, page-size limit) are listed in [`docs/WORK_PLAN.md`](docs/WORK
   `docs/perf/guard-perf-target.ps1` protects only the performance database. Not changed in code.
 - **Fixed Docker settings.** `docker-compose.yml` fixes `container_name: request-management-sql`, and the
   README commands (step 7) use that name; a second instance needs an override file (see step 1).
-- **Bulk request schema in OpenAPI.** The generated OpenAPI document and the Swagger example for
-  `POST /api/requests/bulk-status` also list a `changes` array and a `rowVersionBytes` field per item, which
-  are computed read-only properties of the DTO. The contract that works, and that the tests and the
-  clean-clone check used, is `status` plus `items[] { id, rowVersion }`. Not fixed.
 - **Narrow windows.** At about 800 px the requests table is wider than the viewport and the Update button
   is clipped; the UI was checked at 1400x900. "Clear filters" leaves the search box as it is.
 - **Dev-tooling advisories.** `npm audit` reports 2 findings (undici through `@angular/build`), not addressed.
@@ -470,7 +467,7 @@ direction and with the author approving the steps that touched the database or t
 | Area | AI-assisted | What was checked |
 |---|---|---|
 | Work plan (`docs/WORK_PLAN.md`) | Drafted and revised with AI; reviewed against the assignment PDF | Requirement catalogue and traceability cross-checked against the PDF; task statuses changed only with recorded evidence |
-| Backend (Core, Infrastructure, Api, Seeder) | Written with AI | Unit tests (188) and integration tests against real SQL Server in Testcontainers (133), including the parallel-update test (IT-4) and error-shape tests; `dotnet format` and a 0-warnings build |
+| Backend (Core, Infrastructure, Api, Seeder) | Written with AI | Unit tests (188) and integration tests against real SQL Server in Testcontainers (134), including the parallel-update test (IT-4) and error-shape tests; `dotnet format` and a 0-warnings build |
 | Angular app | Written with AI | 62 Vitest tests, Angular lint (ESLint), `ng build`, and browser smoke checks S-1 to S-7 |
 | Performance scripts (`docs/perf/`) | Written with AI | Offline self-tests passed on 2026-10-27: `test-perf-scripts.ps1` 572/572 and `test-guard.ps1` 18/18. They opened no database connection, so they show that the scripts' own logic and guards behave as designed, not that anything was measured. The scripts were then run live against the dedicated performance database (one run per phase, 2026-10-27); the first live run found a defect in the `sqlcmd` arguments that the offline tests could not see, which was fixed and covered by a new test. Results and their limitation: `docs/perf/PERFORMANCE.md`; notes: `docs/perf/DEVIATIONS.md` |
 | Documentation (this README, verification log) | Written with AI | Commands compared with `launchSettings.json`, `proxy.conf.json`, `package.json`, the controllers and DTOs, and then followed in a clean clone |

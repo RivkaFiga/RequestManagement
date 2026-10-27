@@ -98,7 +98,7 @@ Log sample (R10.8, from the API console): `Request 13375 changed from New to InP
 |---|---|---|
 | Finding 1 (Seeder `--create-new` / `--expect-*` undocumented; shared `UserSecretsId`) | README step 3 (warning box) and step 5 (guard table); "Known limitations" | Documented. Code unchanged: both projects still use `request-management-dev`. |
 | Finding 2 (fixed `container_name`, port) | README step 1 (second-instance recipe), step 7 note; "Known limitations" | Documented. `docker-compose.yml` unchanged: `container_name` is still fixed. |
-| Finding 3 (OpenAPI lists `changes` / `rowVersionBytes` for bulk) | README "Known limitations" | Documented, not investigated further, not fixed. |
+| Finding 3 (OpenAPI lists `changes` / `rowVersionBytes` for bulk) | README "Known limitations" | Fixed after this log (2026-10-27): both computed properties are `[JsonIgnore]` in `BulkStatusUpdateRequest.cs`; `ApiFoundationTests.OpenApi_BulkRequestSchema_ListsOnlyTheJsonContract` asserts that the schema lists only `status`, `items`, `id` and `rowVersion`. The clean-clone run above was made before the fix and was not repeated. |
 | Findings 4 and 5 (Clear filters keeps the search box; table clipped at about 800 px) | README "Known limitations" | Documented as observations. |
 | Deviation 4 (`--no-launch-profile`) | README "Run the API" | Documented. |
 | `npm audit` (2 findings) | README "Known limitations" | Documented, not addressed. |
@@ -107,7 +107,26 @@ The added README paragraphs describe behaviour that this run already exercised; 
 
 ## Why T-604 is not marked Done
 
+> **Superseded (2026-10-27, later):** this section records the state when the run was made. T-603 and the log were committed in `7c8d746`, and T-604 was then marked Done with recorded limits in `docs/WORK_PLAN.md` (the clean-clone run covers `9db54a1`; the README paragraphs were checked against this log and the files, not run again). The reasons below are kept as written.
+
 - The criterion is that "every step and smoke check passes with no undocumented action". Every step and S-1 to S-7 passed, and every deviation and finding is now documented (the README now covers deviations 1 to 4), but the README text added afterwards was not re-followed.
 - T-604 depends on T-601 to T-603: T-601 is Done; T-602 and T-603 were In Progress when the run was made. Later on 2026-10-27, T-602 was marked Done (the README "AI usage" section now has "The author's part", limited to what the author confirmed and the repository records); T-603 still waits for the commit.
 - The verification is "the committed log"; nothing was committed (no commit was requested).
 - The instance `rm-t604-sql`, its volume `rmc-t604_sqlserver-data` and the clone `C:\rmc-t604` are still in place; cleanup was not requested.
+
+## Addendum, 2026-10-27 (working tree after commit `7c8d746`, not a clean clone)
+
+What was checked, and nothing more. No database, Seeder, migration, `docker` or `-Execute` action was run.
+
+| Check | Result |
+|---|---|
+| README references against the files (`.env.example`, `docker-compose.yml` container name and `MSSQL_PORT`, `.nvmrc`, `global.json`, `dotnet-tools.json`, `proxy.conf.json`, `launchSettings.json` profile `http` on port 5080, `package.json` scripts `start`, `test`, `lint`, `appsettings.json` `SummaryCache` keys, Seeder options and defaults) | all present and equal to what the README states |
+| `dotnet build` | 0 warnings, 0 errors |
+| `dotnet format --verify-no-changes` | exit 0 |
+| Unit tests | 188 passed, 0 failed |
+| Integration tests (Testcontainers) | 134 passed, 0 failed (133 before, plus the OpenAPI schema test of finding 3) |
+| `npm test -- --watch=false` | 62 passed |
+| `npm run lint` | All files pass linting |
+| `ng build` | completes |
+
+Not repeated: the run of the README steps in a fresh clone (compose, migrations, Seeder, API, UI, smoke checks S-1 to S-7). It needs a second SQL Server instance, `dotnet ef database update` and the Seeder, which were not approved for this check. The clean-clone run above covers commit `9db54a1`; the code changed since only in `PerfSqlCaptureTests.cs` (commit `7c8d746`) and in the bulk request DTO (finding 3).
