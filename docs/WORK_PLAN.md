@@ -876,7 +876,7 @@ These tasks are interleaved with Phase 2. T-401 starts right after T-202.
 - **Verification:** The committed log.
 
 **T-605: Publish and final plan update.**
-- Estimate: 0.5 h · Status: In Progress (2026-10-27: the final changes are committed and pushed to `origin/feature/request-summary`; the commit hash, the remote check and the anonymous-access check are recorded in the next commit, once they have been done, so that this plan does not claim them earlier)
+- Estimate: 0.5 h · Status: Done, with one recorded limit (2026-10-27. Evidence: commit `dbb682c` is on `origin/feature/request-summary` (`git ls-remote` returned `dbb682c5a873b76cf64ef797acbcfa6e3d344275` for that branch, equal to the local HEAD at the push). Reviewer access was checked without credentials, with `curl` and not in a browser session: the repository page, the GitHub API (`private: false`) and the commit page of `dbb682c` all returned HTTP 200. **Limit:** the default branch `main` (`343a8dd`, the merge of PR #20) contains the project up to `7c8d746`; `dbb682c` (the final status, OpenAPI and documentation changes) is only on `feature/request-summary` until a pull request is merged, which was not done. This follow-up status commit only records this evidence.)
 - **Description:** Push to GitHub and check reviewer access from an anonymous browser session. Update every task status in this plan with links to its evidence.
 - **Deliverable:** The repository URL and the final version of this plan.
 - **Requirements:** RS.1, RS.3, R9.1–R9.6.
