@@ -1,5 +1,9 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
@@ -22,8 +26,18 @@ const item: RequestItem = {
   allowedNextStatuses: ['Waiting'],
 };
 
-function page(items: readonly RequestItem[], pageNumber = 1, totalCount = items.length): PagedResult<RequestItem> {
-  return { items, page: pageNumber, pageSize: 20, totalCount, totalPages: Math.ceil(totalCount / 20) };
+function page(
+  items: readonly RequestItem[],
+  pageNumber = 1,
+  totalCount = items.length,
+): PagedResult<RequestItem> {
+  return {
+    items,
+    page: pageNumber,
+    pageSize: 20,
+    totalCount,
+    totalPages: Math.ceil(totalCount / 20),
+  };
 }
 
 describe('RequestsListPage', () => {
@@ -49,13 +63,18 @@ describe('RequestsListPage', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       imports: [RequestsListPage],
-      providers: [provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(withInterceptors([httpErrorInterceptor])),
+        provideHttpClientTesting(),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(RequestsListPage);
     element = fixture.nativeElement as HTMLElement;
     await settle();
-    http.expectOne('/api/requests/summary').flush({ total: 0, byStatus: [], byPriority: [], generatedAt: '2026-10-25T08:00:00Z' });
+    http
+      .expectOne('/api/requests/summary')
+      .flush({ total: 0, byStatus: [], byPriority: [], generatedAt: '2026-10-25T08:00:00Z' });
   });
 
   afterEach(() => {
@@ -71,7 +90,9 @@ describe('RequestsListPage', () => {
     await settle();
 
     expect(element.querySelector('mat-progress-bar')).toBeNull();
-    const cells = Array.from(element.querySelectorAll('tbody tr:first-child td')).map((c) => c.textContent?.trim());
+    const cells = Array.from(element.querySelectorAll('tbody tr:first-child td')).map((c) =>
+      c.textContent?.trim(),
+    );
     expect(cells.slice(0, 5)).toEqual(['Renew permit', 'Acme', 'In progress', 'High', '—']);
     expect(element.querySelector('.mat-mdc-paginator-range-label')?.textContent).toContain('of 41');
   });
@@ -87,7 +108,6 @@ describe('RequestsListPage', () => {
     const dialog = document.querySelector('app-request-history-dialog');
     expect(dialog?.textContent).toContain('#1 · Renew permit');
     expect(dialog?.querySelector('[data-testid="history-empty"]')).toBeTruthy();
-
   });
 
   it('shows the empty state', async () => {
@@ -99,7 +119,10 @@ describe('RequestsListPage', () => {
   });
 
   it('shows the error and retries the same query', async () => {
-    lastRequest().flush({ title: 'Boom', detail: 'Database unavailable' }, { status: 500, statusText: 'Server Error' });
+    lastRequest().flush(
+      { title: 'Boom', detail: 'Database unavailable' },
+      { status: 500, statusText: 'Server Error' },
+    );
     await settle();
 
     const alert = element.querySelector('[role="alert"]');
@@ -164,8 +187,12 @@ describe('RequestsListPage', () => {
     expect(params.get('page')).toBe('1');
     expect(params.get('organizationName')).toBe('Ac');
     expect(params.get('assignedTo')).toBe('dana');
-    expect(new Date(params.get('createdFrom') as string).getTime()).toBe(new Date('2026-10-01T00:00:00').getTime());
-    expect(new Date(params.get('createdTo') as string).getTime()).toBe(new Date('2026-10-06T00:00:00').getTime());
+    expect(new Date(params.get('createdFrom') as string).getTime()).toBe(
+      new Date('2026-10-01T00:00:00').getTime(),
+    );
+    expect(new Date(params.get('createdTo') as string).getTime()).toBe(
+      new Date('2026-10-06T00:00:00').getTime(),
+    );
     // The summary is global (A4): applying filters does not reload it.
     expect(http.match((r) => r.url === '/api/requests/summary')).toHaveLength(0);
   });
@@ -183,7 +210,9 @@ describe('RequestsListPage', () => {
     set('createdTo', '2026-10-01');
     await settle();
 
-    expect((element.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
+    expect((element.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 
   it('searches after the typing pause, and never sends a single character', async () => {
@@ -239,10 +268,13 @@ describe('RequestsListPage status change', () => {
       .flush({ total: 1, byStatus: [], byPriority: [], generatedAt: '2026-10-25T08:00:00Z' });
     await settle();
   };
-  const updateButton = (): HTMLButtonElement => element.querySelector('app-status-change button') as HTMLButtonElement;
+  const updateButton = (): HTMLButtonElement =>
+    element.querySelector('app-status-change button') as HTMLButtonElement;
   /** Picks a status in the row's select and presses Update. */
   const changeTo = async (label: string): Promise<void> => {
-    const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatSelectHarness.with({ ancestor: 'app-status-change' }));
+    const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(
+      MatSelectHarness.with({ ancestor: 'app-status-change' }),
+    );
     await select.clickOptions({ text: label });
     updateButton().click();
     await settle();
@@ -252,7 +284,10 @@ describe('RequestsListPage status change', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       imports: [RequestsListPage],
-      providers: [provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(withInterceptors([httpErrorInterceptor])),
+        provideHttpClientTesting(),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(RequestsListPage);
@@ -267,7 +302,9 @@ describe('RequestsListPage status change', () => {
   it('limits the choice to the allowed next statuses and needs a choice before Update', async () => {
     expect(updateButton().disabled).toBe(true);
 
-    const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatSelectHarness.with({ ancestor: 'app-status-change' }));
+    const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(
+      MatSelectHarness.with({ ancestor: 'app-status-change' }),
+    );
     await select.open();
     const options = await select.getOptions();
     expect(await Promise.all(options.map((o) => o.getText()))).toEqual(['Waiting']);
@@ -280,7 +317,9 @@ describe('RequestsListPage status change', () => {
     expect(patch.request.method).toBe('PATCH');
     expect(patch.request.body).toEqual({ status: 'Waiting', rowVersion: item.rowVersion });
     expect(patch.request.headers.has('X-User-Name')).toBe(false);
-    expect(element.querySelector('app-status-change [role="status"]')?.textContent).toContain('Saving');
+    expect(element.querySelector('app-status-change [role="status"]')?.textContent).toContain(
+      'Saving',
+    );
     expect(updateButton().disabled).toBe(true);
 
     patch.flush(updated);
@@ -290,7 +329,9 @@ describe('RequestsListPage status change', () => {
 
     await flushSummary();
     await flushList([updated]);
-    expect(element.querySelector('tbody tr:first-child td:nth-child(3)')?.textContent?.trim()).toBe('Waiting');
+    expect(element.querySelector('tbody tr:first-child td:nth-child(3)')?.textContent?.trim()).toBe(
+      'Waiting',
+    );
     expect(notice()?.textContent).toContain('is now Waiting');
   });
 
@@ -331,60 +372,108 @@ describe('RequestsListPage status change', () => {
     http.expectNone('/api/requests');
     http.expectNone('/api/requests/summary');
     expect(updateButton().disabled).toBe(true);
-    expect(element.querySelector('app-status-change')?.textContent).toContain('Reload the data to change');
+    expect(element.querySelector('app-status-change')?.textContent).toContain(
+      'Reload the data to change',
+    );
 
-    const fresh: RequestItem = { ...item, status: 'Completed', rowVersion: 'AAAAAAAAB9G=', allowedNextStatuses: [] };
-    (Array.from(notice()?.querySelectorAll('button') ?? []).find((b) => b.textContent?.includes('Reload data')) as HTMLElement).click();
+    const fresh: RequestItem = {
+      ...item,
+      status: 'Completed',
+      rowVersion: 'AAAAAAAAB9G=',
+      allowedNextStatuses: [],
+    };
+    (
+      Array.from(notice()?.querySelectorAll('button') ?? []).find((b) =>
+        b.textContent?.includes('Reload data'),
+      ) as HTMLElement
+    ).click();
     await settle();
     await flushSummary();
     await flushList([fresh]);
 
     expect(notice()).toBeNull();
-    expect(element.querySelector('tbody tr:first-child td:nth-child(3)')?.textContent?.trim()).toBe('Completed');
+    expect(element.querySelector('tbody tr:first-child td:nth-child(3)')?.textContent?.trim()).toBe(
+      'Completed',
+    );
     expect(element.querySelector('app-status-change')?.textContent).toContain('No further changes');
   });
 
   it('keeps the row editable after a 409 once the reload brings a new rowVersion', async () => {
     await changeTo('Waiting');
-    http.expectOne(STATUS_URL).flush({ title: 'Concurrency conflict.' }, { status: 409, statusText: 'Conflict' });
+    http
+      .expectOne(STATUS_URL)
+      .flush({ title: 'Concurrency conflict.' }, { status: 409, statusText: 'Conflict' });
     await settle();
 
-    (Array.from(notice()?.querySelectorAll('button') ?? []).find((b) => b.textContent?.includes('Reload data')) as HTMLElement).click();
+    (
+      Array.from(notice()?.querySelectorAll('button') ?? []).find((b) =>
+        b.textContent?.includes('Reload data'),
+      ) as HTMLElement
+    ).click();
     await settle();
     await flushSummary();
     await flushList([{ ...item, rowVersion: 'AAAAAAAAB9G=' }]);
 
     await changeTo('Waiting');
-    expect(http.expectOne(STATUS_URL).request.body).toEqual({ status: 'Waiting', rowVersion: 'AAAAAAAAB9G=' });
+    expect(http.expectOne(STATUS_URL).request.body).toEqual({
+      status: 'Waiting',
+      rowVersion: 'AAAAAAAAB9G=',
+    });
   });
 
   it.each([
-    [422, { title: 'Status transition not allowed.', detail: 'Cannot move from New to Completed.' }, 'cannot be changed to that status', 'Cannot move from New to Completed.', true],
-    [404, { title: 'Request not found.', detail: 'No request with id 1 exists.' }, 'no longer exists', 'Reload the data', true],
+    [
+      422,
+      { title: 'Status transition not allowed.', detail: 'Cannot move from New to Completed.' },
+      'cannot be changed to that status',
+      'Cannot move from New to Completed.',
+      true,
+    ],
+    [
+      404,
+      { title: 'Request not found.', detail: 'No request with id 1 exists.' },
+      'no longer exists',
+      'Reload the data',
+      true,
+    ],
     [
       400,
-      { title: 'One or more validation errors occurred.', errors: { 'X-User-Name': ['The X-User-Name header must be at most 100 characters.'] } },
+      {
+        title: 'One or more validation errors occurred.',
+        errors: { 'X-User-Name': ['The X-User-Name header must be at most 100 characters.'] },
+      },
       'was rejected',
       'at most 100 characters',
       false,
     ],
-    [500, { title: 'An unexpected error occurred.' }, 'was not changed', 'You can try again', false],
-  ])('shows the %i error without reloading anything', async (status, body, message, detail, canReload) => {
-    await changeTo('Waiting');
-    http.expectOne(STATUS_URL).flush(body, { status, statusText: 'Error' });
-    await settle();
+    [
+      500,
+      { title: 'An unexpected error occurred.' },
+      'was not changed',
+      'You can try again',
+      false,
+    ],
+  ])(
+    'shows the %i error without reloading anything',
+    async (status, body, message, detail, canReload) => {
+      await changeTo('Waiting');
+      http.expectOne(STATUS_URL).flush(body, { status, statusText: 'Error' });
+      await settle();
 
-    const shown = notice();
-    expect(shown?.getAttribute('role')).toBe('alert');
-    expect(shown?.textContent).toContain(message);
-    expect(shown?.textContent).toContain(detail);
-    const labels = Array.from(shown?.querySelectorAll('button') ?? []).map((b) => b.textContent?.trim());
-    expect(labels.includes('Reload data')).toBe(canReload);
-    http.expectNone('/api/requests');
-    http.expectNone('/api/requests/summary');
-    // The row is usable again (except after a 404, whose data is gone), so the user can choose again.
-    expect(element.querySelector('app-status-change [role="status"]')).toBeNull();
-  });
+      const shown = notice();
+      expect(shown?.getAttribute('role')).toBe('alert');
+      expect(shown?.textContent).toContain(message);
+      expect(shown?.textContent).toContain(detail);
+      const labels = Array.from(shown?.querySelectorAll('button') ?? []).map((b) =>
+        b.textContent?.trim(),
+      );
+      expect(labels.includes('Reload data')).toBe(canReload);
+      http.expectNone('/api/requests');
+      http.expectNone('/api/requests/summary');
+      // The row is usable again (except after a 404, whose data is gone), so the user can choose again.
+      expect(element.querySelector('app-status-change [role="status"]')).toBeNull();
+    },
+  );
 
   it('shows a network failure and lets the user try again', async () => {
     await changeTo('Waiting');

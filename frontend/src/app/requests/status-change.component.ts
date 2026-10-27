@@ -105,7 +105,9 @@ export class StatusChangeComponent {
   /** The chosen status, dropped when it is no longer allowed (the row was reloaded). */
   protected readonly choice = computed(() => {
     const selected = this.selected();
-    return selected !== null && this.request().allowedNextStatuses.includes(selected) ? selected : null;
+    return selected !== null && this.request().allowedNextStatuses.includes(selected)
+      ? selected
+      : null;
   });
   protected readonly locked = computed(() => this.saving() || this.disabled() || this.stale());
 

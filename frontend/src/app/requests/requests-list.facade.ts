@@ -1,7 +1,16 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Observable, Subject, catchError, debounceTime, distinctUntilChanged, map, of, switchMap } from 'rxjs';
-import { ApiError } from '../core/api-error';
+import {
+  Observable,
+  Subject,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  map,
+  of,
+  switchMap,
+} from 'rxjs';
+import { ApiError, toApiError } from '../core/api-error';
 import {
   PagedResult,
   RequestItem,
@@ -46,7 +55,11 @@ export class RequestsListFacade {
   private readonly api = inject(RequestsApiService);
 
   private readonly queryState = signal<RequestsListQuery>(INITIAL_QUERY);
-  private readonly listState = signal<RequestsListState>({ status: 'loading', data: null, error: null });
+  private readonly listState = signal<RequestsListState>({
+    status: 'loading',
+    data: null,
+    error: null,
+  });
   private readonly searchInput$ = new Subject<string>();
   private readonly load$ = new Subject<RequestsListQuery>();
 
@@ -73,7 +86,11 @@ export class RequestsListFacade {
       .subscribe((state) => this.listState.set(state));
 
     this.searchInput$
-      .pipe(debounceTime(SEARCH_DEBOUNCE_MS), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
+      .pipe(
+        debounceTime(SEARCH_DEBOUNCE_MS),
+        distinctUntilChanged(),
+        takeUntilDestroyed(destroyRef),
+      )
       .subscribe((search) => {
         if (search !== (this.queryState().search ?? '')) {
           this.apply({ ...this.queryState(), search, page: 1 });
@@ -122,8 +139,4 @@ export class RequestsListFacade {
       ),
     );
   }
-}
-
-function toApiError(error: unknown): ApiError {
-  return error instanceof ApiError ? error : new ApiError(0, 'Unexpected error.');
 }

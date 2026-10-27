@@ -1,7 +1,13 @@
 import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -12,7 +18,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { finalize } from 'rxjs';
-import { ApiError } from '../core/api-error';
+import { toApiError } from '../core/api-error';
 import {
   REQUEST_PRIORITIES,
   REQUEST_SORT_FIELDS,
@@ -22,7 +28,10 @@ import {
   RequestSortField,
   RequestStatus,
 } from './request.models';
-import { RequestHistoryDialogComponent, RequestHistoryDialogData } from './request-history-dialog.component';
+import {
+  RequestHistoryDialogComponent,
+  RequestHistoryDialogData,
+} from './request-history-dialog.component';
 import { toLabel } from './request-labels';
 import { RequestsApiService } from './requests-api.service';
 import { RequestsListFacade, RequestsListFilters } from './requests-list.facade';
@@ -134,18 +143,21 @@ export class RequestsListPage {
   );
 
   constructor() {
-    this.searchControl.valueChanges.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe((value) => {
-      if (this.searchControl.valid) {
-        this.facade.setSearch(value.trim());
-      }
-    });
+    this.searchControl.valueChanges
+      .pipe(takeUntilDestroyed(inject(DestroyRef)))
+      .subscribe((value) => {
+        if (this.searchControl.valid) {
+          this.facade.setSearch(value.trim());
+        }
+      });
   }
 
   protected applyFilters(): void {
     if (this.filters.invalid) {
       return;
     }
-    const { status, priority, organizationName, assignedTo, createdFrom, createdTo } = this.filters.getRawValue();
+    const { status, priority, organizationName, assignedTo, createdFrom, createdTo } =
+      this.filters.getRawValue();
     const filters: RequestsListFilters = {
       status,
       priority,
@@ -205,9 +217,11 @@ export class RequestsListPage {
           this.reload();
         },
         error: (error: unknown) => {
-          const apiError = error instanceof ApiError ? error : new ApiError(0, 'Unexpected error.');
+          const apiError = toApiError(error);
           if (isStaleFailure(apiError)) {
-            this.staleVersions.update((stale) => new Map(stale).set(request.id, request.rowVersion));
+            this.staleVersions.update((stale) =>
+              new Map(stale).set(request.id, request.rowVersion),
+            );
           }
           this.notice.set(statusChangeFailed(request, apiError));
         },

@@ -7,7 +7,9 @@ export const httpErrorInterceptor: HttpInterceptorFn = (req, next) =>
   next(req).pipe(
     catchError((error: unknown) =>
       throwError(() =>
-        error instanceof HttpErrorResponse ? ApiError.fromResponse(error.status, error.error) : error,
+        error instanceof HttpErrorResponse
+          ? ApiError.fromResponse(error.status, error.error)
+          : error,
       ),
     ),
   );

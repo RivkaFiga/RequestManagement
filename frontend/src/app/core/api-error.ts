@@ -31,7 +31,8 @@ export class ApiError extends Error {
     if (typeof body !== 'object' || body === null) {
       return new ApiError(status, `Request failed (${status}).`);
     }
-    const { title, detail, traceId, errors, ...rest } = body as ProblemDetailsBody & Record<string, unknown>;
+    const { title, detail, traceId, errors, ...rest } = body as ProblemDetailsBody &
+      Record<string, unknown>;
     const extensions = Object.fromEntries(
       Object.entries(rest).filter(([key]) => !['type', 'status', 'instance'].includes(key)),
     );
@@ -57,4 +58,9 @@ function toFieldErrors(errors: unknown): Record<string, readonly string[]> {
     }
   }
   return result;
+}
+
+/** Any failure as the one error shape the UI works with (the interceptor already produces `ApiError`). */
+export function toApiError(error: unknown): ApiError {
+  return error instanceof ApiError ? error : new ApiError(0, 'Unexpected error.');
 }

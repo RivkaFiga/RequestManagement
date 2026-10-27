@@ -1,0 +1,43 @@
+# T-501 snapshot of RequestManagement_Perf before step 2 (removal of the five AddQueryIndexes indexes).
+# Taken 2026-10-27T12:24:33 by set-index-state.ps1 -Action Snapshot; SELECT statements only. Server: localhost,1433 (Docker container request-management-sql).
+# This is NOT a performance result. It holds no credentials and no connection string.
+# State: WithIndexes (every gate of set-index-state.ps1 passed when it was taken).
+# Facts sha256 (the compared lines only): 2FB254016853AB9F508940A6B653053E5E2059B3992E1D4DDDDC30F1385D766E
+bounds|min_id=1|max_id=100000|min_created=2024-10-01 00:12:49.685|max_created=2026-09-30 23:45:30.586|history_rows=0
+by_priority|1|40005
+by_priority|2|45166
+by_priority|3|14829
+by_status|1|19831
+by_status|2|29844
+by_status|3|14982
+by_status|4|35343
+constraint|RequestStatusHistory|CK_RequestStatusHistory_NewStatus
+constraint|RequestStatusHistory|CK_RequestStatusHistory_PreviousStatus
+constraint|RequestStatusHistory|CK_RequestStatusHistory_StatusChanged
+constraint|Requests|CK_Requests_Priority
+constraint|Requests|CK_Requests_Status
+constraint|Requests|CK_Requests_UpdatedAt_NotBeforeCreatedAt
+dataset|rows=100000|checksum=-1953119262
+fk|RequestStatusHistory|FK_RequestStatusHistory_Requests_RequestId|delete=NO_ACTION
+index|RequestStatusHistory|IX_RequestStatusHistory_RequestId_ChangedAt|NONCLUSTERED|unique=0|pk=0|fill=0|padded=0|ignoredup=0|rowlocks=1|pagelocks=1|filter=0|seqkey=0|disabled=0|keys=RequestId ASC, ChangedAt DESC|include=|compression=NONE
+index|RequestStatusHistory|PK_RequestStatusHistory|CLUSTERED|unique=1|pk=1|fill=0|padded=0|ignoredup=0|rowlocks=1|pagelocks=1|filter=0|seqkey=0|disabled=0|keys=Id ASC|include=|compression=NONE
+index|Requests|IX_Requests_AssignedTo_Status_CreatedAt|NONCLUSTERED|unique=0|pk=0|fill=0|padded=0|ignoredup=0|rowlocks=1|pagelocks=1|filter=0|seqkey=0|disabled=0|keys=AssignedTo ASC, Status ASC, CreatedAt DESC|include=|compression=NONE
+index|Requests|IX_Requests_CreatedAt_Id|NONCLUSTERED|unique=0|pk=0|fill=0|padded=0|ignoredup=0|rowlocks=1|pagelocks=1|filter=0|seqkey=0|disabled=0|keys=CreatedAt DESC, Id DESC|include=|compression=NONE
+index|Requests|IX_Requests_OrganizationName_CreatedAt|NONCLUSTERED|unique=0|pk=0|fill=0|padded=0|ignoredup=0|rowlocks=1|pagelocks=1|filter=0|seqkey=0|disabled=0|keys=OrganizationName ASC, CreatedAt DESC|include=|compression=NONE
+index|Requests|IX_Requests_Priority_Status|NONCLUSTERED|unique=0|pk=0|fill=0|padded=0|ignoredup=0|rowlocks=1|pagelocks=1|filter=0|seqkey=0|disabled=0|keys=Priority ASC, Status ASC|include=|compression=NONE
+index|Requests|IX_Requests_Status_CreatedAt|NONCLUSTERED|unique=0|pk=0|fill=0|padded=0|ignoredup=0|rowlocks=1|pagelocks=1|filter=0|seqkey=0|disabled=0|keys=Status ASC, CreatedAt DESC|include=Priority|compression=NONE
+index|Requests|PK_Requests|CLUSTERED|unique=1|pk=1|fill=0|padded=0|ignoredup=0|rowlocks=1|pagelocks=1|filter=0|seqkey=0|disabled=0|keys=Id ASC|include=|compression=NONE
+index|__EFMigrationsHistory|PK___EFMigrationsHistory|CLUSTERED|unique=1|pk=1|fill=0|padded=0|ignoredup=0|rowlocks=1|pagelocks=1|filter=0|seqkey=0|disabled=0|keys=MigrationId ASC|include=|compression=NONE
+migration|20261020183000_InitialCreate|10.0.13
+migration|20261020183100_AddQueryIndexes|10.0.13
+target|db=RequestManagement_Perf|marker=1|state=ONLINE|readonly=0|collation=SQL_Latin1_General_CP1_CI_AS
+pages|__EFMigrationsHistory|PK___EFMigrationsHistory|2
+pages|Requests|IX_Requests_AssignedTo_Status_CreatedAt|1041
+pages|Requests|IX_Requests_CreatedAt_Id|622
+pages|Requests|IX_Requests_OrganizationName_CreatedAt|1411
+pages|Requests|IX_Requests_Priority_Status|344
+pages|Requests|IX_Requests_Status_CreatedAt|657
+pages|Requests|PK_Requests|2254
+pages|RequestStatusHistory|IX_RequestStatusHistory_RequestId_ChangedAt|0
+pages|RequestStatusHistory|PK_RequestStatusHistory|0
+sessions|0
